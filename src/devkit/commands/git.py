@@ -23,10 +23,9 @@ def commit_message(
     output: Optional[Path] = typer.Option(None, "--output", help="File to write the draft to"),
 ):
     """Generate a commit message draft/template with AI instructions."""
-    config = load_config()
-    lang_to_use = lang or config.get("git", {}).get("lang", "ja")
-    
     try:
+        config = load_config()
+        lang_to_use = lang or config.get("git", {}).get("lang", "ja")
         content = generate_commit_template(staged=staged, lang=lang_to_use)
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -46,10 +45,9 @@ def pr_body(
     output: Optional[Path] = typer.Option(None, "--output", help="File to write the PR body to"),
 ):
     """Generate a PR body template."""
-    config = load_config()
-    lang_to_use = lang or config.get("git", {}).get("lang", "ja")
-
     try:
+        config = load_config()
+        lang_to_use = lang or config.get("git", {}).get("lang", "ja")
         content = generate_pr_template(base=base, lang=lang_to_use)
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -66,6 +64,7 @@ def pr_body(
 def safe_push(
     yes: bool = typer.Option(False, "--yes", "-y", help="Do not prompt for confirmation"),
     no_confirm: bool = typer.Option(False, "--no-confirm", help="Alias for --yes"),
+    remote: Optional[str] = typer.Option(None, "--remote", help="Remote name to use when setting upstream if none is configured"),
 ):
     """Safely push the current branch to upstream, preventing direct pushes to main/master."""
     try:
@@ -79,8 +78,11 @@ def safe_push(
     
     args = ["git", "push"]
     if not check_upstream():
-        console.print("[yellow]No upstream set. Will automatically set upstream.[/yellow]")
-        args.extend(["-u", "origin", current])
+        if not remote:
+            console.print("[red]No upstream is configured for this branch.[/red] Use --remote to set one or configure tracking first.")
+            raise typer.Exit(1)
+        console.print(f"[yellow]No upstream set. Will automatically set upstream to {remote}.[/yellow]")
+        args.extend(["-u", remote, current])
         
     do_push = yes or no_confirm
     if not do_push:

@@ -16,8 +16,12 @@ def check(
     files: List[str] = typer.Argument(..., help="Files or glob patterns to check encoding for"),
 ):
     """Check text files for UTF-8 validity, BOM, and other anomalies."""
-    config = load_config()
-    ignore_patterns = config.get("encoding", {}).get("ignore", [".git", "node_modules", "__pycache__", ".venv", "venv"])
+    try:
+        config = load_config()
+        ignore_patterns = config.get("encoding", {}).get("ignore", [".git", "node_modules", "__pycache__", ".venv", "venv"])
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1)
 
     table = Table(title="Encoding Check Results")
     table.add_column("File", style="cyan")

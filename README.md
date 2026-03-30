@@ -9,8 +9,8 @@
 - **`devkit encoding normalize`**: (予定/Stub) エンコーディングと改行コードを自動修正する将来の機能です。
 - **`devkit diff summarize`**: カレントワークスペースにおける差分の要約・集計（追加行数、削除行数）をファイルごとに行います。
 - **`devkit block extract / replace`**: 長大なファイルから行数や見出し（Markdown）、関数定義（簡易ヒューリスティック検索 / best-effort）等を基準に特定のブロックだけを抽出・置換します。
-- **`devkit git commit-message / pr-body`**: `git diff` 等のコンテキスト情報を含む「AI向けの下書き用テンプレート」を自動生成します（テキストの生成自体はAIエージェントに委譲します）。
-- **`devkit git safe-push`**: `main` や `master` ブランチへの直接Pushを阻止する等、フェイルセーフを設けた安全なプッシュラッパーです。
+- **`devkit git commit-message / pr-body`**: `git diff` や `git log` の要約をもとに、AIがそのまま埋めやすい下書き用テンプレートを生成します。
+- **`devkit git safe-push`**: `main` や `master` ブランチへの直接Pushを阻止し、必要なら `--remote` で upstream を明示できる安全なプッシュラッパーです。
 
 ## インストール方法
 
@@ -28,6 +28,9 @@ uv run devkit --help
 
 # Pythonファイルのエンコーディングと改行コードをチェック
 uv run devkit encoding check "*.py"
+
+# 安全な push。upstream が無い場合は remote を明示
+uv run devkit git safe-push --remote origin
 ```
 
 ## 設定ファイル (`devkit.toml`)
