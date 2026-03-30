@@ -1,0 +1,16 @@
+# Settings for the xpotato-devkit
+
+[encoding]
+ignore = [
+    ".git", 
+    ".venv", 
+    "venv", 
+    "node_modules", 
+    "__pycache__", 
+    ".ruff_cache", 
+    "dist", 
+    "build"
+]
+
+[git]
+lang = "ja"
