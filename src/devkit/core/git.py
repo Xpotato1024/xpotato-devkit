@@ -1,5 +1,5 @@
 import subprocess
-from typing import Optional, List
+from typing import Any, Dict, List
 from devkit.core.diff import summarize_diff
 
 def run_git_command(args: List[str]) -> str:
@@ -9,44 +9,68 @@ def run_git_command(args: List[str]) -> str:
         raise RuntimeError(f"Git command failed: {error_msg}")
     return result.stdout.strip()
 
+def _is_japanese(lang: str) -> bool:
+    return lang.lower().startswith("ja")
+
+def _format_file_summary(files: List[Dict[str, Any]]) -> str:
+    if not files:
+        return "# - none"
+
+    lines = []
+    for entry in files[:10]:
+        if entry["is_binary"]:
+            detail = "binary"
+        else:
+            detail = f"+{entry['additions']}/-{entry['deletions']}"
+        lines.append(f"# - {entry['path']} ({detail})")
+
+    remaining = len(files) - len(lines)
+    if remaining > 0:
+        lines.append(f"# - ... and {remaining} more file(s)")
+    return "\n".join(lines)
+
+def _format_lines_with_limit(lines: List[str], limit: int = 10) -> str:
+    if not lines:
+        return "# - none"
+
+    trimmed = lines[:limit]
+    formatted = [f"# - {line}" for line in trimmed]
+    remaining = len(lines) - len(trimmed)
+    if remaining > 0:
+        formatted.append(f"# - ... and {remaining} more line(s)")
+    return "\n".join(formatted)
+
 def generate_commit_template(staged: bool = True, lang: str = 'ja') -> str:
     summary = summarize_diff(staged=staged)
     if not summary["files"]:
         raise ValueError("No changes found to generate commit message for.")
-        
-    diff_args = ["diff"]
-    if staged:
-        diff_args.append("--staged")
-    full_diff = run_git_command(diff_args)
-    
-    if lang == 'ja':
+
+    if _is_japanese(lang):
         prompt = (
-            "以下のGitの差分を確認し、コミットメッセージを作成してください。\n"
-            "1行目に50文字以内で変更内容（Type: Subject の形式）を要約し、\n"
-            "3行目以降に「なぜ変更したか」「何を変更したか」を箇条書き等で簡潔に記載してください。"
+            "あなたは Git のコミットメッセージを下書きするアシスタントです。\n"
+            "出力はコミットメッセージ本文のみ。\n"
+            "1行目: `Type: Subject` 形式で変更を要約する。\n"
+            "2行目: 空行。\n"
+            "3行目以降: 何を、なぜ変えたかを簡潔に箇条書きで書く。\n"
+            "推測は避け、下の要約にある事実だけを使う。"
         )
     else:
         prompt = (
-            "Please create a commit message for the following Git diff.\n"
-            "Summarize the change in the first line (Type: Subject, max 50 chars),\n"
-            "and explain 'why' and 'what' was changed in the body starting from the third line."
+            "You are drafting a Git commit message.\n"
+            "Return only the commit message body.\n"
+            "Line 1: summarize the change as `Type: Subject`.\n"
+            "Line 2: blank.\n"
+            "Line 3+: briefly explain what changed and why.\n"
+            "Use only the factual context below."
         )
-        
-    diff_lines = full_diff.split('\n')
-    formatted_diff = '\n'.join(f"# {line}" for line in diff_lines)
-    
+
     return f"""<!--
 {prompt}
 -->
 
-# Write your commit message above. The following is context for the AI and will be ignored by Git.
-# Diff summary:
-# {summary['total_additions']} additions, {summary['total_deletions']} deletions across {len(summary['files'])} files.
-#
-# Full diff:
-# ```diff
-{formatted_diff}
-# ```
+# Diff summary: {summary['total_additions']} additions, {summary['total_deletions']} deletions across {len(summary['files'])} file(s).
+# File summary:
+{_format_file_summary(summary['files'])}
 """
 
 def generate_pr_template(base: str = "main", lang: str = "ja") -> str:
@@ -58,12 +82,12 @@ def generate_pr_template(base: str = "main", lang: str = "ja") -> str:
     
     log_lines = log_output.split('\n')
     stat_lines = stat_output.split('\n')
-    formatted_log = '\n'.join(f"<!-- # {line} -->" for line in log_lines)
-    formatted_stat = '\n'.join(f"<!-- # {line} -->" for line in stat_lines)
+    formatted_log = _format_lines_with_limit(log_lines, limit=8)
+    formatted_stat = _format_lines_with_limit(stat_lines, limit=8)
     
-    if lang == 'ja':
+    if _is_japanese(lang):
         tpl = f"""## 概要
-* ここにプルリクエストの概要を記載してください
+* 変更の要点を1〜2文でまとめてください。
 
 ## 主な変更点
 * 
@@ -75,7 +99,10 @@ def generate_pr_template(base: str = "main", lang: str = "ja") -> str:
 * 
 
 <!--
-以下の情報を参考に、上記の項目を適切な内容で埋めてください。
+あなたは PR 本文を下書きするアシスタントです。
+出力は Markdown 本文のみ。
+上の各見出しを埋めること。
+推測は避け、下の要約にある事実だけを使う。
 
 # Commits:
 {formatted_log}
@@ -84,8 +111,8 @@ def generate_pr_template(base: str = "main", lang: str = "ja") -> str:
 {formatted_stat}
 -->"""
     else:
-         tpl = f"""## Overview
-* Briefly describe the purpose of this PR.
+        tpl = f"""## Overview
+* Summarize the change in 1-2 sentences.
 
 ## Key Changes
 * 
@@ -97,7 +124,10 @@ def generate_pr_template(base: str = "main", lang: str = "ja") -> str:
 * 
 
 <!--
-Please use the following information to fill out the sections above.
+You are drafting a pull request body.
+Return Markdown only.
+Fill in the sections above.
+Use only the factual context below.
 
 # Commits:
 {formatted_log}
@@ -109,11 +139,15 @@ Please use the following information to fill out the sections above.
 
 def check_safe_branch() -> None:
     current = run_git_command(["branch", "--show-current"])
+    if not current:
+        raise RuntimeError("Cannot push from a detached HEAD. Please checkout a branch first.")
     if current in ("main", "master"):
         raise RuntimeError(f"Direct push to {current} branch is highly discouraged. Please use a feature branch.")
 
 def check_upstream() -> bool:
     current = run_git_command(["branch", "--show-current"])
+    if not current:
+        return False
     try:
         run_git_command(["rev-parse", "--abbrev-ref", f"{current}@{{upstream}}"])
         return True
