@@ -1,45 +1,48 @@
 # xpotato-devkit
 
-`xpotato-devkit` is a repo-agnostic CLI toolkit for AI-assisted development workflows.
-It provides deterministic utilities for checking encoding, extracting diffs, manipulating text blocks, and generating AI prompts, designed to minimize token usage and enhance safety.
+`xpotato-devkit` は、AIによる開発ワークフローをサポートするための、リポジトリに依存しない汎用的なCLIツールキットです。
+エンコーディングチェック、差分の抽出、指定したテキストブロックの抽出・置換、AIへのプロンプト生成等の決定論的（deterministic）なユーティリティを提供し、LLM使用時のトークン消費量を最小限に抑えつつ、安全性を高めることを目的として設計されています。
 
-## Features
+## 主な機能
 
-- **`devkit encoding check [files...]`**: Verify text files for UTF-8 validity, BOM, replacement characters, and mixed newlines to prevent AI hallucinations.
-- **`devkit diff summarize`**: Generate brief diff statistics (`added`, `deleted` lines) for the current workspace.
-- **`devkit block extract / replace`**: Dynamically extract or replace specific lines, Markdown headings, or functions to keep AI payloads small.
-- **`devkit git commit-message / pr-body`**: Automatically generate context-rich templates containing diff stats to feed into AI assistants (like Cursor/Gale) for high-quality commit and PR drafts.
-- **`devkit git safe-push`**: Standardized pushing command with safe-guards against direct pushes to `main` / `master`.
+- **`devkit encoding check [files...]`**: テキストファイルの UTF-8 妥当性、BOM付きの有無、置換文字（文字化け）や混在する改行コードを検査し、AIのハルシネーション（幻覚）を未然に防ぎます。
+- **`devkit diff summarize`**: カレントワークスペースにおける差分の統計情報（追加行数、削除行数）をファイルごとに集計します。
+- **`devkit block extract / replace`**: 長大なファイルから行数や見出し（Markdown）、関数定義等を基準に特定のブロックだけを動的に抽出または置換し、AIに渡すペイロードをコンパクトに保ちます。
+- **`devkit git commit-message / pr-body`**: `git diff` や `git log` の統計情報を含むコンテキスト情報と指示文フォーマットを構築し、AIアシスタント（CursorやGale等）に高品質なコミットメッセージやPR本文のドラフトを生成させるためのテンプレートを自動的に作成します。
+- **`devkit git safe-push`**: `main` や `master` ブランチへの直接Pushを阻止する等、フェイルセーフを設けた安全なプッシュラッパーです。
 
-## Installation
+## インストール方法
 
-This project is built for use with [uv](https://github.com/astral-sh/uv).
+本プロジェクトのパッケージおよび環境管理には [uv](https://github.com/astral-sh/uv) を使用しています。
 
 ```bash
 uv sync
 ```
 
-To run commands, use `uv run`:
+各種コマンドを実行するには `uv run` を使用してください:
 
 ```bash
+# ヘルプと使用可能なコマンド一覧を表示
 uv run devkit --help
+
+# Pythonファイルのエンコーディングと改行コードをチェック
 uv run devkit encoding check "*.py"
 ```
 
-## Configuration
+## 設定ファイル (`devkit.toml`)
 
-You can customize the toolkit behavior locally using a `devkit.toml` file in the root directory.
+プロジェクトのルートディレクトリに `devkit.toml` を配置することで、ツールキットの挙動をプロジェクトごとにカスタマイズすることができます。
 
 ```toml
 [encoding]
-# Ignore paths from encoding checks
+# encoding check コマンドの検査対象から除外するディレクトリ・ファイル名
 ignore = [".git", "node_modules", "dist", ".venv", "__pycache__"]
 
 [git]
-# Default language for AI instructions in commit/PR drafts
-lang = "ja"  # Use "en" for English
+# commit-message や pr-body におけるAIへの指示文のデフォルト言語
+lang = "ja"  # 英語の場合は "en" を指定
 ```
 
-## License
+## ライセンス
 
-MIT License
+本ソフトウェアは [MIT License](LICENSE) のもとで公開されています。
