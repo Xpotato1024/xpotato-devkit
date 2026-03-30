@@ -63,7 +63,10 @@ def pr_body(
         print(content)
 
 @app.command("safe-push")
-def safe_push():
+def safe_push(
+    yes: bool = typer.Option(False, "--yes", "-y", help="Do not prompt for confirmation"),
+    no_confirm: bool = typer.Option(False, "--no-confirm", help="Alias for --yes"),
+):
     """Safely push the current branch to upstream, preventing direct pushes to main/master."""
     try:
         check_safe_branch()
@@ -79,7 +82,11 @@ def safe_push():
         console.print("[yellow]No upstream set. Will automatically set upstream.[/yellow]")
         args.extend(["-u", "origin", current])
         
-    if typer.confirm("Are you sure you want to push?"):
+    do_push = yes or no_confirm
+    if not do_push:
+        do_push = typer.confirm("Are you sure you want to push?")
+        
+    if do_push:
         result = subprocess.run(args)
         if result.returncode != 0:
             console.print("[red]Push failed.[/red]")

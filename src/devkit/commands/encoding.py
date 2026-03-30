@@ -88,10 +88,10 @@ def check(
     if has_errors:
         raise typer.Exit(code=1)
 
-@app.command("normalize")
+@app.command("normalize", hidden=True)
 def normalize(
     files: List[str] = typer.Argument(..., help="Files or glob patterns to normalize"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without making changes"),
 ):
-    """Normalize files (remove BOM, standardize newlines to LF)."""
+    """(Stub) Normalize files (remove BOM, standardize newlines to LF)."""
     raise typer.Exit("Normalize is not fully implemented yet in Phase 1.")

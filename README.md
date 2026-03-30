@@ -5,10 +5,11 @@
 
 ## 主な機能
 
-- **`devkit encoding check [files...]`**: テキストファイルの UTF-8 妥当性、BOM付きの有無、置換文字（文字化け）や混在する改行コードを検査し、AIのハルシネーション（幻覚）を未然に防ぎます。
+- **`devkit encoding check [files...]`**: テキストファイルの UTF-8 妥当性、BOM付きの有無、置換文字や混在する改行コードを検査し、AIのハルシネーションを防ぎます。
+- **`devkit encoding normalize`**: (予定/Stub) エンコーディングと改行コードを自動修正する将来の機能です。
 - **`devkit diff summarize`**: カレントワークスペースにおける差分の統計情報（追加行数、削除行数）をファイルごとに集計します。
-- **`devkit block extract / replace`**: 長大なファイルから行数や見出し（Markdown）、関数定義等を基準に特定のブロックだけを動的に抽出または置換し、AIに渡すペイロードをコンパクトに保ちます。
-- **`devkit git commit-message / pr-body`**: `git diff` や `git log` の統計情報を含むコンテキスト情報と指示文フォーマットを構築し、AIアシスタント（CursorやGale等）に高品質なコミットメッセージやPR本文のドラフトを生成させるためのテンプレートを自動的に作成します。
+- **`devkit block extract / replace`**: 長大なファイルから行数や見出し（Markdown）、関数定義（簡易ヒューリスティック検索）等を基準に特定のブロックだけを抽出・置換します。
+- **`devkit git commit-message / pr-body`**: `git diff` 等のコンテキスト情報を含む「AI向けの下書き用テンプレート」を自動生成します（テキストの生成自体はAIエージェントに委譲します）。
 - **`devkit git safe-push`**: `main` や `master` ブランチへの直接Pushを阻止する等、フェイルセーフを設けた安全なプッシュラッパーです。
 
 ## インストール方法

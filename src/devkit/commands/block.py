@@ -12,9 +12,9 @@ console = Console()
 def extract(
     file: Path = typer.Argument(..., help="Target file"),
     lines: Optional[str] = typer.Option(None, "--lines", help="Line range e.g. 10-20"),
-    marker: Optional[str] = typer.Option(None, "--marker", help="Marker string (extracts between 2 occurrences)"),
+    marker: Optional[str] = typer.Option(None, "--marker", help="Marker string (extracts between 1st and 2nd occurrence, or EOF if no 2nd)"),
     heading: Optional[str] = typer.Option(None, "--heading", help="Markdown heading to extract e.g. '## 1.'"),
-    function: Optional[str] = typer.Option(None, "--function", help="Function name to extract"),
+    function: Optional[str] = typer.Option(None, "--function", help="Function name to extract (best-effort heuristic, stops at empty line)"),
     output: Optional[Path] = typer.Option(None, "--output", help="Output file path"),
 ):
     """Extract a block of text from a file."""
