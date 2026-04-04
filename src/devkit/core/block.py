@@ -1,5 +1,45 @@
 from pathlib import Path
-from typing import Tuple, Optional, List
+import difflib
+import re
+from typing import List, Optional, Tuple
+
+
+FUNCTION_PATTERNS = (
+    re.compile(r"^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\("),
+    re.compile(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)\b"),
+    re.compile(r"^\s*(?:pub\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\("),
+    re.compile(r"^\s*func\s+(?:\([^)]+\)\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\("),
+)
+
+
+def list_markdown_headings(filepath: Path) -> List[dict[str, object]]:
+    entries: List[dict[str, object]] = []
+    for line_number, line in enumerate(filepath.read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped.startswith("#"):
+            continue
+        marker = stripped.split()[0]
+        if set(marker) != {"#"}:
+            continue
+        entries.append({"line": line_number, "level": len(marker), "text": stripped[len(marker):].strip()})
+    return entries
+
+
+def list_functions(filepath: Path) -> List[dict[str, object]]:
+    entries: List[dict[str, object]] = []
+    for line_number, line in enumerate(filepath.read_text(encoding="utf-8").splitlines(), start=1):
+        for pattern in FUNCTION_PATTERNS:
+            match = pattern.search(line)
+            if match:
+                entries.append({"line": line_number, "name": match.group(1)})
+                break
+    return entries
+
+
+def suggest_candidates(target: str, choices: List[str], limit: int = 3) -> List[str]:
+    if not target or not choices:
+        return []
+    return difflib.get_close_matches(target, choices, n=limit, cutoff=0.4)
 
 def _find_heading_end(lines: List[str], start_idx: int, heading: str) -> int:
     """Finds the end of a markdown heading section."""
@@ -52,6 +92,7 @@ def find_block_bounds(
         return start_idx, end_idx
         
     if heading:
+        available_headings = [line.strip() for line in lines if line.strip().startswith("#")]
         start_idx = -1
         for i, line in enumerate(lines):
             if heading in line and line.strip().startswith('#'):
@@ -59,20 +100,36 @@ def find_block_bounds(
                 break
                 
         if start_idx == -1:
-            raise ValueError(f"Heading '{heading}' not found.")
+            suggestions = suggest_candidates(heading, available_headings)
+            message = f"Heading '{heading}' not found."
+            if suggestions:
+                message += f" Did you mean: {', '.join(suggestions)}?"
+            raise ValueError(message)
             
         end_idx = _find_heading_end(lines, start_idx, heading)
         return start_idx, end_idx
         
     if function:
+        available_functions = []
         start_idx = -1
         for i, line in enumerate(lines):
-            if function in line and any(kw in line for kw in ["def ", "fn ", "class ", "func "]):
-                start_idx = i
+            for pattern in FUNCTION_PATTERNS:
+                match = pattern.search(line)
+                if not match:
+                    continue
+                available_functions.append(match.group(1))
+                if function == match.group(1):
+                    start_idx = i
+                    break
+            if start_idx != -1:
                 break
         
         if start_idx == -1:
-            raise ValueError(f"Function/Class '{function}' not found.")
+            suggestions = suggest_candidates(function, available_functions)
+            message = f"Function/Class '{function}' not found."
+            if suggestions:
+                message += f" Did you mean: {', '.join(suggestions)}?"
+            raise ValueError(message)
         
         end_idx = start_idx + 1
         while end_idx < len(lines):

@@ -16,6 +16,8 @@ def test_encoding_check_missing_file():
 def test_diff_summarize_help():
     result = runner.invoke(app, ["diff", "summarize", "--help"])
     assert result.exit_code == 0
+    assert "--base" in result.stdout
+    assert "--head" in result.stdout
 
 def test_block_extract_missing_file():
     result = runner.invoke(app, ["block", "extract", "non-existent-file-xyz.txt", "--lines", "1-2"])
@@ -27,11 +29,19 @@ def test_patch_apply_missing_file():
 def test_git_commit_message_help():
     result = runner.invoke(app, ["git", "commit-message", "--help"])
     assert result.exit_code == 0
+    assert "--commits" in result.stdout
+    assert "--base" in result.stdout
 
 def test_git_pr_body_help():
     result = runner.invoke(app, ["git", "pr-body", "--help"])
     assert result.exit_code == 0
+    assert "--staged" in result.stdout
+    assert "--commits" in result.stdout
 
 def test_git_safe_push_help():
     result = runner.invoke(app, ["git", "safe-push", "--help"])
+    assert result.exit_code == 0
+
+def test_bootstrap_install_self_help():
+    result = runner.invoke(app, ["bootstrap", "install-self", "--help"])
     assert result.exit_code == 0

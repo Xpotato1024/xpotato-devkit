@@ -7,10 +7,10 @@
 
 - **`devkit encoding check [files...]`**: テキストファイルの UTF-8 妥当性、BOM付きの有無、置換文字や混在する改行コードを検査し、AIのハルシネーションを防ぎます。
 - **`devkit encoding normalize`**: (予定/Stub) エンコーディングと改行コードを自動修正する将来の機能です。
-- **`devkit diff summarize`**: カレントワークスペースにおける差分の要約・集計（追加行数、削除行数）をファイルごとに行います。
-- **`devkit block extract / replace`**: 長大なファイルから行数や見出し（Markdown）、関数定義（簡易ヒューリスティック検索 / best-effort）等を基準に特定のブロックだけを抽出・置換します。
-- **`devkit git commit-message / pr-body`**: `git diff` や `git log` の要約をもとに、AIがそのまま埋めやすい下書き用テンプレートを生成します。
-- **`devkit git safe-push`**: `main` や `master` ブランチへの直接Pushを阻止し、必要なら `--remote` で upstream を明示できる安全なプッシュラッパーです。
+- **`devkit diff summarize`**: カレントワークスペース、ステージ済み変更、または `--base/--head` で指定した比較範囲の差分を要約・集計します。
+- **`devkit block extract / replace`**: 長大なファイルから行数や見出し（Markdown）、関数定義（簡易ヒューリスティック検索 / best-effort）等を基準に特定のブロックだけを抽出・置換し、`--list-headings` / `--list-functions` で探索も補助します。
+- **`devkit git commit-message / pr-body`**: `git diff` や `git log` の要約をもとに、`--staged`、`--base/--head`、`--commits` で対象差分を絞った下書き用テンプレートを生成します。
+- **`devkit git safe-push`**: `main` や `master` ブランチへの直接Pushを阻止し、`--yes` による非対話実行や `--remote` による upstream 設定に対応する安全なプッシュラッパーです。
 
 ## インストール方法
 
@@ -29,9 +29,26 @@ uv run devkit --help
 # Pythonファイルのエンコーディングと改行コードをチェック
 uv run devkit encoding check "*.py"
 
+# ステージ済み変更だけを要約
+uv run devkit diff summarize --staged
+
+# 比較範囲を明示してコミット文の下書きを生成
+uv run devkit git commit-message --base origin/main --head HEAD
+
+# 長い Markdown の見出し一覧を確認
+uv run devkit block extract README.md --list-headings
+
 # 安全な push。upstream が無い場合は remote を明示
-uv run devkit git safe-push --remote origin
+uv run devkit git safe-push --remote origin --yes
 ```
+
+checkout 中の `devkit` をユーザーツールとして導入したい場合は、次のコマンドを実行してください:
+
+```bash
+uv run devkit bootstrap install-self
+```
+
+既存の `scripts/bootstrap_devkit.py` は互換ラッパーとして残してあり、同じ処理を呼び出します。
 
 ## 設定ファイル (`devkit.toml`)
 
