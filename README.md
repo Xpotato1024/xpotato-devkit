@@ -42,11 +42,13 @@ uv run devkit block extract README.md --list-headings
 uv run devkit git safe-push --remote origin --yes
 ```
 
-`devkit` を PATH に入れて初回セットアップしたい場合は、次のスクリプトを実行してください:
+checkout 中の `devkit` をユーザーツールとして導入したい場合は、次のコマンドを実行してください:
 
 ```bash
-uv run python scripts/bootstrap_devkit.py
+uv run devkit bootstrap install-self
 ```
+
+既存の `scripts/bootstrap_devkit.py` は互換ラッパーとして残してあり、同じ処理を呼び出します。
 
 ## 設定ファイル (`devkit.toml`)
 

@@ -41,3 +41,7 @@ def test_git_pr_body_help():
 def test_git_safe_push_help():
     result = runner.invoke(app, ["git", "safe-push", "--help"])
     assert result.exit_code == 0
+
+def test_bootstrap_install_self_help():
+    result = runner.invoke(app, ["bootstrap", "install-self", "--help"])
+    assert result.exit_code == 0
