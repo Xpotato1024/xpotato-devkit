@@ -82,6 +82,8 @@
 ## Documentation Policy
 - Update `README.md` when user-facing commands, setup, or examples change.
 - Update `docs/` when design decisions, architecture, or requirements change materially.
+- Keep `docs/` well-organized into hierarchical subdirectories like `docs/reports/`, `docs/proposals/`, and `docs/design/`.
+- **Implementation Reports**: Every time an implementation task is completed, create a report artifact (in English or Japanese) summarizing the implementation details and place it under `docs/reports/`.
 - Prefer concise, durable documentation over task-specific chatter.
 - When adding examples, keep them generic and not tied to a single private repository.
 
