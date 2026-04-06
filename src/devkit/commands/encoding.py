@@ -14,6 +14,7 @@ console = Console()
 @app.command("check")
 def check(
     files: List[str] = typer.Argument(..., help="Files or glob patterns to check encoding for"),
+    brief: bool = typer.Option(False, "--brief", help="Output a single summary line instead of a table"),
 ):
     """Check text files for UTF-8 validity, BOM, and other anomalies."""
     try:
@@ -23,15 +24,8 @@ def check(
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1)
 
-    table = Table(title="Encoding Check Results")
-    table.add_column("File", style="cyan")
-    table.add_column("Valid UTF-8", style="green")
-    table.add_column("BOM", style="yellow")
-    table.add_column("Replacement Char", style="red")
-    table.add_column("Control Chars", style="red")
-    table.add_column("Mixed Newlines", style="magenta")
-    
     has_errors = False
+    issue_details: List[str] = []
 
     all_files = []
     for f in files:
@@ -41,8 +35,19 @@ def check(
             all_files.append(f)
 
     if not all_files:
-        console.print("[yellow]No files matched the input patterns.[/yellow]")
+        if brief:
+            print("FAIL: no files matched")
+        else:
+            console.print("[yellow]No files matched the input patterns.[/yellow]")
         raise typer.Exit(code=1)
+
+    table = Table(title="Encoding Check Results")
+    table.add_column("File", style="cyan")
+    table.add_column("Valid UTF-8", style="green")
+    table.add_column("BOM", style="yellow")
+    table.add_column("Replacement Char", style="red")
+    table.add_column("Control Chars", style="red")
+    table.add_column("Mixed Newlines", style="magenta")
 
     processed_files = 0
     for filename in all_files:
@@ -74,6 +79,19 @@ def check(
         )
         if issues:
             has_errors = True
+            # Collect issue reasons for brief mode
+            reasons = []
+            if not res["valid_utf8"]:
+                reasons.append("invalid_utf8")
+            if res["has_bom"]:
+                reasons.append("BOM")
+            if res["has_replacement_char"]:
+                reasons.append("replacement_char")
+            if res["has_control_chars"]:
+                reasons.append("control_chars")
+            if res["mixed_newlines"]:
+                reasons.append("mixed_newlines")
+            issue_details.append(f"{res['file']}: {', '.join(reasons)}")
             
         table.add_row(
             res["file"][:50] + "..." if len(res["file"]) > 53 else res["file"],
@@ -85,9 +103,23 @@ def check(
         )
         
     if processed_files == 0:
-        console.print("[yellow]No valid files found to process.[/yellow]")
+        if brief:
+            print("FAIL: no valid files found")
+        else:
+            console.print("[yellow]No valid files found to process.[/yellow]")
         raise typer.Exit(code=1)
-        
+
+    if brief:
+        if has_errors:
+            detail = "; ".join(issue_details[:5])
+            extra = f" +{len(issue_details) - 5} more" if len(issue_details) > 5 else ""
+            print(f"FAIL: {processed_files} files checked, {len(issue_details)} issues ({detail}{extra})")
+        else:
+            print(f"OK: {processed_files} files checked, 0 issues")
+        if has_errors:
+            raise typer.Exit(code=1)
+        return
+
     console.print(table)
     if has_errors:
         raise typer.Exit(code=1)

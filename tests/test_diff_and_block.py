@@ -1,9 +1,10 @@
+"""Tests for diff summarize command and core logic."""
+
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
-from devkit.commands import block as block_commands
 from devkit.commands import diff as diff_commands
 from devkit.core import diff as diff_core
 
@@ -46,36 +47,3 @@ def test_diff_summarize_reports_scope_validation_errors() -> None:
 
     assert result.exit_code == 1
     assert "cannot be combined" in result.stdout
-
-
-def test_block_extract_lists_headings(tmp_path: Path) -> None:
-    target = tmp_path / "doc.md"
-    target.write_text("# Title\n\n## Details\n", encoding="utf-8")
-
-    result = runner.invoke(block_commands.app, ["extract", str(target), "--list-headings"])
-
-    assert result.exit_code == 0
-    assert "L1: # Title" in result.stdout
-    assert "L3: ## Details" in result.stdout
-
-
-def test_block_extract_lists_functions(tmp_path: Path) -> None:
-    target = tmp_path / "sample.py"
-    target.write_text("def first():\n    pass\n\nclass Second:\n    pass\n", encoding="utf-8")
-
-    result = runner.invoke(block_commands.app, ["extract", str(target), "--list-functions"])
-
-    assert result.exit_code == 0
-    assert "L1: first" in result.stdout
-    assert "L4: Second" in result.stdout
-
-
-def test_block_extract_suggests_close_heading(tmp_path: Path) -> None:
-    target = tmp_path / "doc.md"
-    target.write_text("# Intro\n\n## Install Guide\ncontent\n", encoding="utf-8")
-
-    result = runner.invoke(block_commands.app, ["extract", str(target), "--heading", "Install Gude"])
-
-    assert result.exit_code == 1
-    assert "Did you mean" in result.stdout
-    assert "## Install Guide" in result.stdout

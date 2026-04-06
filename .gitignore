@@ -22,3 +22,6 @@ venv.bak/
 dist/
 build/
 *.egg-info/
+
+# Metrics
+.devkit-metrics.jsonl
