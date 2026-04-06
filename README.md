@@ -7,10 +7,18 @@
 
 - **`devkit encoding check [files...]`**: テキストファイルの UTF-8 妥当性、BOM付きの有無、置換文字や混在する改行コードを検査し、AIのハルシネーションを防ぎます。
 - **`devkit encoding normalize`**: (予定/Stub) エンコーディングと改行コードを自動修正する将来の機能です。
-- **`devkit diff summarize`**: カレントワークスペース、ステージ済み変更、または `--base/--head` で指定した比較範囲の差分を要約・集計します。
-- **`devkit block extract / replace`**: 長大なファイルから行数や見出し（Markdown）、関数定義（簡易ヒューリスティック検索 / best-effort）等を基準に特定のブロックだけを抽出・置換し、`--list-headings` / `--list-functions` で探索も補助します。
+- **`devkit diff summarize`**: カレントワークスペース、ステージ済み変更、または `--base/--head` で指定した比較範囲の差分を要約・集計します。`--files-only` でファイルパスのみの出力にも対応。
+- **`devkit block extract / replace`**: 長大なファイルから行数や見出し（Markdown）、関数定義等を基準に特定のブロックだけを抽出・置換します。Python はインデントベース、Rust/Go/C/JS は波括弧ベースで関数終端を判定する言語対応の構造解析を備え、`--symbol` で struct/impl/enum も対象にできます。`--heading-exact` による完全一致指定や、同名見出しの disambiguation にも対応。`--list-headings` / `--list-functions` で探索を補助し、`--dry-run` では unified diff プレビューを表示します。
+- **`devkit block outline`**: ファイル中の関数/クラスのシグネチャのみを行番号付きで抽出します。ボディを省略するため、ファイル全体を読まずに API 構造を把握でき、トークン消費を大幅に削減します。`--imports` で import 文、`--docstrings` で docstring 1 行目も含められます。
+- **`devkit block context`**: 指定シンボルの前後 N 行を行番号付きで抽出します。`--margin` でコンテキスト量を制御でき、patch 作成の文脈として最適です。
+- **`devkit tree`**: プロジェクトのディレクトリ構造をコンパクトに表示します。`.gitignore` と `devkit.toml` の ignore 設定を尊重し、`--max-depth`, `--ext`, `--dirs-only` によるフィルタリングに対応。AI がリポジトリ構造を把握する際のトークン消費を最小化します。
+- **`devkit md append-section / replace-section / ensure-section / append-bullet`**: Markdown ドキュメントの特定セクションに対する追記・置換・新規作成・箇条書き追加を CLI で実行します。frontmatter を壊さず安全に操作し、`--dedupe` による重複除去にも対応します。
+- **`devkit doc impl-note / benchmark-note`**: `diff summarize` の結果を自動注入した実装記録・ベンチマーク記録のテンプレートを生成します。日本語/英語の切替に対応。
 - **`devkit git commit-message / pr-body`**: `git diff` や `git log` の要約をもとに、`--staged`、`--base/--head`、`--commits` で対象差分を絞った下書き用テンプレートを生成します。
 - **`devkit git safe-push`**: `main` や `master` ブランチへの直接Pushを阻止し、`--yes` による非対話実行や `--remote` による upstream 設定に対応する安全なプッシュラッパーです。
+- **`devkit patch apply / diagnose`**: unified diff パッチの適用と診断を行います。`--reject` による部分適用、`--verbose` による詳細出力、`diagnose` コマンドによる hunk 単位の適用可能性診断に対応し、AI による patch 再生成に使えるコンパクトなエラー要約を出力します。
+
+> **`--brief` モード**: 上記の主要コマンドには共通で `--brief` フラグが用意されており、出力を `OK: ...` / `FAIL: ...` の 1 行に制限できます。AI エージェントが操作結果のみを確認する場合にトークンを大幅に節約します。
 
 ## インストール方法
 

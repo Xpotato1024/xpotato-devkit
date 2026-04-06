@@ -2,8 +2,11 @@ import subprocess
 from typing import Any, Dict, List
 from devkit.core.diff import DiffScope, build_diff_scope, summarize_diff, summarize_diff_scope
 
+from devkit.core.timing import timed
+
 def run_git_command(args: List[str]) -> str:
-    result = subprocess.run(["git"] + args, capture_output=True, text=True, encoding="utf-8")
+    with timed("git"):
+        result = subprocess.run(["git"] + args, capture_output=True, text=True, encoding="utf-8")
     if result.returncode != 0:
         error_msg = result.stderr.strip() or result.stdout.strip()
         raise RuntimeError(f"Git command failed: {error_msg}")
