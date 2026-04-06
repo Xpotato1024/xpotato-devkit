@@ -1,14 +1,28 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use serde_derive::Deserialize;
+use std::path::Path;
+use std::fs;
+
+#[derive(Debug, Default, Deserialize)]
+pub struct DevkitConfig {
+    #[serde(default)]
+    pub encoding: EncodingConfig,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Debug, Default, Deserialize)]
+pub struct EncodingConfig {
+    #[serde(default)]
+    pub ignore: Vec<String>,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+pub fn load_config(cwd: &Path) -> Result<DevkitConfig, std::io::Error> {
+    let config_path = cwd.join("devkit.toml");
+    if config_path.exists() {
+        let content = fs::read_to_string(&config_path)?;
+        match toml::from_str(&content) {
+            Ok(config) => Ok(config),
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
+        }
+    } else {
+        Ok(DevkitConfig::default())
     }
 }
