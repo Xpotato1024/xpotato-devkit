@@ -90,3 +90,11 @@ lang = "ja"  # 英語の場合は "en" を指定
 ## ライセンス
 
 本ソフトウェアは [MIT License](LICENSE) のもとで公開されています。
+
+## AI workflow
+
+For agent-facing guidance, see:
+
+- [AI agent workflow](docs/design/ai_agent_workflow.md)
+- `SKILLs/devkit-inspect-edit-verify/`
+- `SKILLs/devkit-git-drafts/`
