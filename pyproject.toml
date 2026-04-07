@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-devkit = "devkit.cli:app"
+devkit-py = "devkit.cli:app"
 
 [build-system]
 requires = ["hatchling"]

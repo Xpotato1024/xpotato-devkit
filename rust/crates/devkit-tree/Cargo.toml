@@ -1,0 +1,9 @@
+[package]
+name = "devkit-tree"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+devkit-core = { version = "0.1.0", path = "../devkit-core" }
+ignore = "0.4.25"
+serde = "1.0.228"
