@@ -98,3 +98,13 @@ For agent-facing guidance, see:
 - [AI agent workflow](docs/design/ai_agent_workflow.md)
 - `SKILLs/devkit-inspect-edit-verify/`
 - `SKILLs/devkit-git-drafts/`
+
+## Release
+
+Release is tag-triggered only:
+
+- Push a `v*` tag to build and publish Windows, Linux, and macOS Intel assets.
+- Pushes to `main` and pull requests do not create releases.
+- Release asset names follow `devkit-{tag}-{target}{ext}`.
+
+See [tag-triggered release docs](docs/release/tag-triggered-release.md) for the maintainer flow.
