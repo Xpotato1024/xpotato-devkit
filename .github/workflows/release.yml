@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    name: Build & Release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: devkit
+            asset_name: devkit-linux-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: devkit.exe
+            asset_name: devkit-windows-x86_64.exe
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: devkit
+            asset_name: devkit-macos-aarch64
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+        
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Build
+      working-directory: rust
+      run: cargo build --release --target ${{ matrix.target }} --package devkit-cli
+
+    - name: Rename Artifact
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          mv rust/target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.asset_name }}
+        else
+          mv rust/target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.asset_name }}
+        fi
+      shell: bash
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ matrix.asset_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
