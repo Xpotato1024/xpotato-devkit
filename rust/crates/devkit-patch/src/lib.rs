@@ -1,7 +1,7 @@
 use regex::Regex;
+use std::fs;
 use std::path::Path;
 use std::process::Command;
-use std::fs;
 
 lazy_static::lazy_static! {
     static ref HUNK_RE: Regex = Regex::new(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@").unwrap();
@@ -31,12 +31,26 @@ pub struct PatchDiagnostic {
 impl PatchDiagnostic {
     pub fn summary(&self) -> String {
         if self.success {
-            return format!("Patch applied cleanly ({} hunk(s), {} file(s)).", self.total_hunks, self.affected_files.len());
+            return format!(
+                "Patch applied cleanly ({} hunk(s), {} file(s)).",
+                self.total_hunks,
+                self.affected_files.len()
+            );
         }
 
         let mut lines = vec![
-            format!("Patch FAILED: {}/{} hunk(s) failed.", self.failed_hunks, self.total_hunks),
-            format!("Affected files: {}", if self.affected_files.is_empty() { "unknown".to_string() } else { self.affected_files.join(", ") }),
+            format!(
+                "Patch FAILED: {}/{} hunk(s) failed.",
+                self.failed_hunks, self.total_hunks
+            ),
+            format!(
+                "Affected files: {}",
+                if self.affected_files.is_empty() {
+                    "unknown".to_string()
+                } else {
+                    self.affected_files.join(", ")
+                }
+            ),
         ];
 
         for err in self.errors.iter().take(5) {
@@ -44,7 +58,10 @@ impl PatchDiagnostic {
         }
 
         if self.errors.len() > 5 {
-            lines.push(format!("  - ... and {} more error(s)", self.errors.len() - 5));
+            lines.push(format!(
+                "  - ... and {} more error(s)",
+                self.errors.len() - 5
+            ));
         }
 
         lines.join("\n")
@@ -73,7 +90,7 @@ pub fn parse_patch_hunks(patch_text: &str) -> (Vec<HunkInfo>, Vec<String>) {
             let old_count = caps.get(2).map_or(1, |m| m.as_str().parse().unwrap_or(1));
             let new_start = caps.get(3).map_or(0, |m| m.as_str().parse().unwrap_or(0));
             let new_count = caps.get(4).map_or(1, |m| m.as_str().parse().unwrap_or(1));
-            
+
             hunks.push(HunkInfo {
                 file: current_file.clone(),
                 old_start,
@@ -94,18 +111,21 @@ pub fn apply_patch(
     verbose: bool,
     reject: bool,
 ) -> PatchDiagnostic {
-    let patch_text = match fs::read_to_string(patch_file) {
-        Ok(t) => t,
-        Err(_) => String::new()
-    };
-    
+    let patch_text = fs::read_to_string(patch_file).unwrap_or_default();
+
     let (hunks, affected_files) = parse_patch_hunks(&patch_text);
-    
+
     let mut cmd = Command::new("git");
     cmd.arg("apply");
-    if dry_run { cmd.arg("--check"); }
-    if reject { cmd.arg("--reject"); }
-    if verbose { cmd.arg("--verbose"); }
+    if dry_run {
+        cmd.arg("--check");
+    }
+    if reject {
+        cmd.arg("--reject");
+    }
+    if verbose {
+        cmd.arg("--verbose");
+    }
     cmd.arg(patch_file);
 
     let output = cmd.output().expect("failed to execute git apply");
@@ -125,13 +145,18 @@ pub fn apply_patch(
     } else {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let error_text = if !stderr.trim().is_empty() { stderr.trim() } else { stdout.trim() };
-        
-        diag.errors = error_text.lines()
+        let error_text = if !stderr.trim().is_empty() {
+            stderr.trim()
+        } else {
+            stdout.trim()
+        };
+
+        diag.errors = error_text
+            .lines()
             .map(|l| l.trim().to_string())
             .filter(|l| !l.is_empty())
             .collect();
-            
+
         let mut fail_count = 0;
         for err in &diag.errors {
             let lower = err.to_lowercase();
@@ -139,11 +164,11 @@ pub fn apply_patch(
                 fail_count += 1;
             }
         }
-        
+
         diag.failed_hunks = fail_count.max(1);
         diag.applied_hunks = hunks.len().saturating_sub(diag.failed_hunks);
     }
-    
+
     diag
 }
 

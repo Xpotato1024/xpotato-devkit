@@ -1,6 +1,6 @@
 use serde_derive::Deserialize;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct DevkitConfig {

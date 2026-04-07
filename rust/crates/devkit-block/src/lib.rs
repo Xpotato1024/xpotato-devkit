@@ -18,7 +18,11 @@ lazy_static::lazy_static! {
     static ref DOCSTRING_OPEN_RE: Regex = Regex::new(r#"^\s*(?:"""|'''|///|/\*\*)"#).unwrap();
 }
 
-pub fn outline_file(filepath: &Path, include_imports: bool, include_docstrings: bool) -> Result<Vec<String>, std::io::Error> {
+pub fn outline_file(
+    filepath: &Path,
+    include_imports: bool,
+    include_docstrings: bool,
+) -> Result<Vec<String>, std::io::Error> {
     let content = fs::read_to_string(filepath)?;
     let lines: Vec<&str> = content.lines().collect();
     let mut result = Vec::new();
@@ -58,7 +62,12 @@ pub fn outline_file(filepath: &Path, include_imports: bool, include_docstrings: 
             if include_docstrings && i + 1 < lines.len() {
                 let next_line = lines[i + 1].trim();
                 // Simple workaround for raw string bug, just use starts_with
-                if next_line.starts_with("\"\"\"") || next_line.starts_with("'''") || next_line.starts_with("///") || next_line.starts_with("/**") || next_line.starts_with("#") {
+                if next_line.starts_with("\"\"\"")
+                    || next_line.starts_with("'''")
+                    || next_line.starts_with("///")
+                    || next_line.starts_with("/**")
+                    || next_line.starts_with("#")
+                {
                     let mut doc_line = next_line;
                     if doc_line.starts_with("\"\"\"") || doc_line.starts_with("'''") {
                         doc_line = doc_line.trim_matches('"').trim_matches('\'').trim();
@@ -78,20 +87,23 @@ pub fn outline_file(filepath: &Path, include_imports: bool, include_docstrings: 
 }
 
 fn detect_end_strategy(filepath: Option<&Path>) -> fn(&[&str], usize) -> usize {
-    if let Some(path) = filepath {
-        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            match ext.to_lowercase().as_str() {
-                "py" => return find_function_end_python,
-                "rs" | "go" | "c" | "cpp" | "h" | "hpp" | "cc" | "js" | "jsx" | "ts" | "tsx" | "java" | "cs" | "kt" | "swift" => return find_function_end_braces,
-                _ => {}
-            }
+    if let Some(path) = filepath
+        && let Some(ext) = path.extension().and_then(|e| e.to_str())
+    {
+        match ext.to_lowercase().as_str() {
+            "py" => return find_function_end_python,
+            "rs" | "go" | "c" | "cpp" | "h" | "hpp" | "cc" | "js" | "jsx" | "ts" | "tsx"
+            | "java" | "cs" | "kt" | "swift" => return find_function_end_braces,
+            _ => {}
         }
     }
     find_function_end_fallback
 }
 
 fn find_function_end_python(lines: &[&str], start_idx: usize) -> usize {
-    let start_line = lines[start_idx].trim_end_matches('\n').trim_end_matches('\r');
+    let start_line = lines[start_idx]
+        .trim_end_matches('\n')
+        .trim_end_matches('\r');
     let start_indent = start_line.len() - start_line.trim_start().len();
     let mut idx = start_idx + 1;
     let mut last_content = start_idx;
@@ -100,7 +112,11 @@ fn find_function_end_python(lines: &[&str], start_idx: usize) -> usize {
         let stripped = raw.trim();
         if !stripped.is_empty() {
             let cur_indent = raw.len() - raw.trim_start().len();
-            if cur_indent <= start_indent && !stripped.starts_with('#') && !stripped.starts_with('@') && !stripped.starts_with(')') {
+            if cur_indent <= start_indent
+                && !stripped.starts_with('#')
+                && !stripped.starts_with('@')
+                && !stripped.starts_with(')')
+            {
                 break;
             }
             last_content = idx;
@@ -113,8 +129,8 @@ fn find_function_end_python(lines: &[&str], start_idx: usize) -> usize {
 fn find_function_end_braces(lines: &[&str], start_idx: usize) -> usize {
     let mut depth = 0;
     let mut found_open = false;
-    for idx in start_idx..lines.len() {
-        for ch in lines[idx].chars() {
+    for (idx, line) in lines.iter().enumerate().skip(start_idx) {
+        for ch in line.chars() {
             if ch == '{' {
                 depth += 1;
                 found_open = true;
@@ -150,7 +166,9 @@ pub fn find_block_bounds(
 ) -> Result<(usize, usize), String> {
     if let Some(r) = line_range {
         let parts: Vec<&str> = r.split('-').collect();
-        if parts.len() != 2 { return Err("Invalid line range".to_string()); }
+        if parts.len() != 2 {
+            return Err("Invalid line range".to_string());
+        }
         let start: usize = parts[0].parse().map_err(|_| "Invalid line range")?;
         let end: usize = parts[1].parse().map_err(|_| "Invalid line range")?;
         return Ok((start.saturating_sub(1), end));
@@ -178,15 +196,17 @@ pub fn find_block_bounds(
         let mut start_idx = None;
         for (i, line) in lines.iter().enumerate() {
             for pattern in FUNCTION_PATTERNS.iter() {
-                if let Some(cap) = pattern.captures(line) {
-                    if let Some(m) = cap.get(1) {
-                        if m.as_str() == f && start_idx.is_none() {
-                            start_idx = Some(i);
-                        }
-                    }
+                if let Some(cap) = pattern.captures(line)
+                    && let Some(m) = cap.get(1)
+                    && m.as_str() == f
+                    && start_idx.is_none()
+                {
+                    start_idx = Some(i);
                 }
             }
-            if start_idx.is_some() { break; }
+            if start_idx.is_some() {
+                break;
+            }
         }
         let start = start_idx.ok_or_else(|| format!("Function/Class '{}' not found", f))?;
         let strategy = detect_end_strategy(filepath);
@@ -205,7 +225,7 @@ pub fn extract_block(
     function: Option<&str>,
 ) -> Result<String, String> {
     let content = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
-    
+
     let mut raw_lines = Vec::new();
     let mut last = 0;
     for (i, _) in content.match_indices('\n') {
@@ -216,15 +236,18 @@ pub fn extract_block(
         raw_lines.push(&content[last..]);
     }
 
-    let (start, end) = find_block_bounds(&raw_lines, line_range, marker, heading, function, Some(filepath))?;
+    let (start, end) = find_block_bounds(
+        &raw_lines,
+        line_range,
+        marker,
+        heading,
+        function,
+        Some(filepath),
+    )?;
     Ok(raw_lines[start..end].join(""))
 }
 
-pub fn extract_context(
-    filepath: &Path,
-    function: &str,
-    margin: usize,
-) -> Result<String, String> {
+pub fn extract_context(filepath: &Path, function: &str, margin: usize) -> Result<String, String> {
     let content = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
     let plain: Vec<&str> = content.lines().collect();
 
@@ -238,15 +261,21 @@ pub fn extract_context(
         raw_lines.push(&content[last..]);
     }
 
-    let (start, end) = find_block_bounds(&raw_lines, None, None, None, Some(function), Some(filepath))?;
+    let (start, end) =
+        find_block_bounds(&raw_lines, None, None, None, Some(function), Some(filepath))?;
 
     let ctx_start = start.saturating_sub(margin);
     let ctx_end = (end + margin).min(plain.len());
 
     let mut result_lines = Vec::new();
-    result_lines.push(format!("--- {} L{}-{} ---", filepath.display(), ctx_start + 1, ctx_end));
-    for i in ctx_start..ctx_end {
-        result_lines.push(format!("{}: {}", i + 1, plain[i]));
+    result_lines.push(format!(
+        "--- {} L{}-{} ---",
+        filepath.display(),
+        ctx_start + 1,
+        ctx_end
+    ));
+    for (i, line) in plain.iter().enumerate().take(ctx_end).skip(ctx_start) {
+        result_lines.push(format!("{}: {}", i + 1, line));
     }
     result_lines.push("".to_string());
     Ok(result_lines.join("\n"))
@@ -262,7 +291,7 @@ pub fn replace_block(
     dry_run: bool,
 ) -> Result<(String, String), String> {
     let content = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
-    
+
     let mut raw_lines = Vec::new();
     let mut last = 0;
     for (i, _) in content.match_indices('\n') {
@@ -273,10 +302,17 @@ pub fn replace_block(
         raw_lines.push(&content[last..]);
     }
 
-    let (start, end) = find_block_bounds(&raw_lines, line_range, marker, heading, function, Some(filepath))?;
-    
+    let (start, end) = find_block_bounds(
+        &raw_lines,
+        line_range,
+        marker,
+        heading,
+        function,
+        Some(filepath),
+    )?;
+
     let old_block = raw_lines[start..end].join("");
-    
+
     let mut new_repl = replacement.to_string();
     if !new_repl.is_empty() && !new_repl.ends_with('\n') {
         new_repl.push('\n');
@@ -298,6 +334,8 @@ pub fn diff_preview(old_block: &str, new_block: &str, filepath: &Path) -> String
     use similar::TextDiff;
     let diff = TextDiff::from_lines(old_block, new_block);
     let fname = filepath.display().to_string();
-    diff.unified_diff().header(&fname, &fname).context_radius(3).to_string()
+    diff.unified_diff()
+        .header(&fname, &fname)
+        .context_radius(3)
+        .to_string()
 }
-

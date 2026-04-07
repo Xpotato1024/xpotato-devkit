@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 xpotato-devkit は、AI支援開発のための repo-agnostic な CLI ツールキットです。
-現在の主実装は **Rust 製ネイティブCLI** であり、高速性・配布性・安定した実行を重視しています。差分集計、ブロック抽出・置換、AI向けテンプレート生成補助などツールとして確定的（deterministic）なユーティリティを提供し、LLM使用時のトークン消費量を最小限に抑えつつ、安全性を高めることを目的としています。
+現在の主実装は **Rust 製ネイティブCLI** であり、高速性・配布性・安定した実行を重視しています（[ベンチマーク詳細](docs/benchmarks/python-vs-rust.md) によれば、Python版と比較して起動速度が約12倍、抽出速度が最大20倍向上しています）。差分集計、ブロック抽出・置換、AI向けテンプレート生成補助などツールとして確定的（deterministic）なユーティリティを提供し、LLM使用時のトークン消費量を最小限に抑えつつ、安全性を高めることを目的としています。
 
 > [!NOTE]
 > Python版は後方互換のために同梱されていますが、現行の推奨実装および新機能追加の対象は Rust版 のみです。
@@ -37,6 +37,9 @@ cargo install --git https://github.com/Xpotato1024/xpotato-devkit --branch main 
 
 ### 2. バイナリのダウンロード (GitHub Releases)
 Rust環境がない場合は、[GitHub Releases](https://github.com/Xpotato1024/xpotato-devkit/releases) から各OS（Windows, Linux, macOS）用のコンパイル済み実行ファイルをダウンロードし、PATHの通ったディレクトリに配置してください。
+
+> [!TIP]
+> **運用フロー:** GitHub 上で `v*`（例: `v0.1.0`）のタグを作成・Pushすると、GitHub Actions が自動的に Windows / Linux / macOS 向けの実行バイナリをビルドし、[Releases](https://github.com/Xpotato1024/xpotato-devkit/releases) に公開・配布する仕組みとなっています。
 
 ## よく使うコマンド例
 
