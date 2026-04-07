@@ -106,15 +106,75 @@ pub enum BlockCommands {
         #[arg(long)]
         function: Option<String>,
     },
-    Replace,
+    /// Replace an exact block
+    Replace {
+        file: String,
+        #[arg(long)]
+        with_file: String,
+        #[arg(long, allow_hyphen_values = true)]
+        lines: Option<String>,
+        #[arg(long)]
+        marker: Option<String>,
+        #[arg(long)]
+        heading: Option<String>,
+        #[arg(long)]
+        function: Option<String>,
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum MdCommands {
-    AppendSection,
-    ReplaceSection,
-    EnsureSection,
-    AppendBullet,
+    /// Append content to a markdown section
+    AppendSection {
+        file: String,
+        heading: String,
+        #[arg(long)]
+        content: Option<String>,
+        #[arg(long)]
+        with_file: Option<String>,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Replace the body of a markdown section
+    ReplaceSection {
+        file: String,
+        heading: String,
+        #[arg(long)]
+        content: Option<String>,
+        #[arg(long)]
+        with_file: Option<String>,
+        #[arg(long)]
+        no_keep_heading: bool,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Ensure a section exists
+    EnsureSection {
+        file: String,
+        heading: String,
+        #[arg(long)]
+        content: Option<String>,
+        #[arg(long)]
+        with_file: Option<String>,
+        #[arg(long, default_value_t = 2)]
+        level: usize,
+        #[arg(long)]
+        after: Option<String>,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Append a list bullet item
+    AppendBullet {
+        file: String,
+        heading: String,
+        bullet: String,
+        #[arg(long)]
+        dedupe: bool,
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -123,7 +183,13 @@ pub enum PatchCommands {
     Diagnose {
         file: String,
     },
-    Apply,
+    Apply {
+        file: String,
+        #[arg(long)]
+        reject: bool,
+        #[arg(long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -224,10 +290,87 @@ fn main() {
                         }
                     }
                 }
-                BlockCommands::Replace => println!("block replace: Not implemented yet"),
+                BlockCommands::Replace { file, with_file, lines, marker, heading, function, dry_run } => {
+                    let path = std::path::Path::new(file);
+                    let with_path = std::path::Path::new(with_file);
+                    let replacement = std::fs::read_to_string(with_path).unwrap_or_else(|e| {
+                        eprintln!("Error reading replacement file: {}", e);
+                        std::process::exit(1);
+                    });
+                    match devkit_block::replace_block(
+                        path,
+                        &replacement,
+                        lines.as_deref(),
+                        marker.as_deref(),
+                        heading.as_deref(),
+                        function.as_deref(),
+                        *dry_run,
+                    ) {
+                        Ok((old, new_b)) => {
+                            if *dry_run {
+                                println!("DRY RUN: file was not modified.");
+                                let diff = devkit_block::diff_preview(&old, &new_b, path);
+                                print!("{}", diff);
+                            } else {
+                                println!("Successfully replaced block in {}", file);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
             }
         }
-        Commands::Md { command } => println!("md {:?}: Not implemented yet", command),
+        Commands::Md { command } => {
+            let get_content = |c: &Option<String>, w: &Option<String>| -> String {
+                if let Some(text) = c {
+                    text.clone()
+                } else if let Some(path) = w {
+                    std::fs::read_to_string(path).unwrap_or_else(|e| {
+                        eprintln!("Error reading file {}: {}", path, e);
+                        std::process::exit(1);
+                    })
+                } else {
+                    String::new()
+                }
+            };
+            
+            match command {
+                MdCommands::AppendSection { file, heading, content, with_file, dry_run } => {
+                    let path = std::path::Path::new(file);
+                    let body = get_content(content, with_file);
+                    match devkit_md::append_to_section(path, heading, body, *dry_run) {
+                        Ok(_) => println!("Successfully appended to section '{}'", heading),
+                        Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
+                    }
+                }
+                MdCommands::ReplaceSection { file, heading, content, with_file, no_keep_heading, dry_run } => {
+                    let path = std::path::Path::new(file);
+                    let body = get_content(content, with_file);
+                    match devkit_md::replace_section(path, heading, body, !*no_keep_heading, *dry_run) {
+                        Ok(_) => println!("Successfully replaced section '{}'", heading),
+                        Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
+                    }
+                }
+                MdCommands::EnsureSection { file, heading, content, with_file, level, after, dry_run } => {
+                    let path = std::path::Path::new(file);
+                    let body = get_content(content, with_file);
+                    match devkit_md::ensure_section(path, heading, body, *level, after.as_deref(), *dry_run) {
+                        Ok(_) => println!("Successfully ensured section '{}'", heading),
+                        Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
+                    }
+                }
+                MdCommands::AppendBullet { file, heading, bullet, dedupe, dry_run } => {
+                    let path = std::path::Path::new(file);
+                    match devkit_md::append_bullet(path, heading, bullet, *dedupe, *dry_run) {
+                        Ok(_) => println!("Successfully appended bullet to '{}'", heading),
+                        Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
+                    }
+                }
+            }
+        }
         Commands::Patch { command } => {
             match command {
                 PatchCommands::Diagnose { file } => {
@@ -238,7 +381,14 @@ fn main() {
                         std::process::exit(1);
                     }
                 }
-                PatchCommands::Apply => println!("patch apply: Not implemented yet"),
+                PatchCommands::Apply { file, reject, verbose } => {
+                    let path = std::path::Path::new(file);
+                    let diag = devkit_patch::apply_patch(path, false, *verbose, *reject);
+                    println!("{}", diag.summary());
+                    if !diag.success {
+                        std::process::exit(1);
+                    }
+                }
             }
         }
         Commands::Doc { command } => println!("doc {:?}: Not implemented yet", command),

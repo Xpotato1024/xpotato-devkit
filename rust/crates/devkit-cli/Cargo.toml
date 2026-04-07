@@ -7,5 +7,6 @@ edition = "2024"
 clap = { version = "4.6.0", features = ["derive"] }
 devkit-block = { version = "0.1.0", path = "../devkit-block" }
 devkit-core = { version = "0.1.0", path = "../devkit-core" }
+devkit-md = { version = "0.1.0", path = "../devkit-md" }
 devkit-patch = { version = "0.1.0", path = "../devkit-patch" }
 devkit-tree = { version = "0.1.0", path = "../devkit-tree" }

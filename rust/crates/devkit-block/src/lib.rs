@@ -251,3 +251,53 @@ pub fn extract_context(
     result_lines.push("".to_string());
     Ok(result_lines.join("\n"))
 }
+
+pub fn replace_block(
+    filepath: &Path,
+    replacement: &str,
+    line_range: Option<&str>,
+    marker: Option<&str>,
+    heading: Option<&str>,
+    function: Option<&str>,
+    dry_run: bool,
+) -> Result<(String, String), String> {
+    let content = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
+    
+    let mut raw_lines = Vec::new();
+    let mut last = 0;
+    for (i, _) in content.match_indices('\n') {
+        raw_lines.push(&content[last..=i]);
+        last = i + 1;
+    }
+    if last < content.len() {
+        raw_lines.push(&content[last..]);
+    }
+
+    let (start, end) = find_block_bounds(&raw_lines, line_range, marker, heading, function, Some(filepath))?;
+    
+    let old_block = raw_lines[start..end].join("");
+    
+    let mut new_repl = replacement.to_string();
+    if !new_repl.is_empty() && !new_repl.ends_with('\n') {
+        new_repl.push('\n');
+    }
+
+    let mut new_lines = Vec::new();
+    new_lines.extend_from_slice(&raw_lines[..start]);
+    new_lines.push(&new_repl);
+    new_lines.extend_from_slice(&raw_lines[end..]);
+
+    if !dry_run {
+        fs::write(filepath, new_lines.join("")).map_err(|e| e.to_string())?;
+    }
+
+    Ok((old_block, new_repl))
+}
+
+pub fn diff_preview(old_block: &str, new_block: &str, filepath: &Path) -> String {
+    use similar::TextDiff;
+    let diff = TextDiff::from_lines(old_block, new_block);
+    let fname = filepath.display().to_string();
+    diff.unified_diff().header(&fname, &fname).context_radius(3).to_string()
+}
+
