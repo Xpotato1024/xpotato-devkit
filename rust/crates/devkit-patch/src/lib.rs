@@ -29,6 +29,27 @@ pub struct PatchDiagnostic {
 }
 
 impl PatchDiagnostic {
+    pub fn brief_summary(&self) -> String {
+        if self.success {
+            return format!(
+                "OK: patch applied cleanly ({} hunk(s), {} file(s))",
+                self.total_hunks,
+                self.affected_files.len()
+            );
+        }
+
+        let affected = if self.affected_files.is_empty() {
+            "unknown".to_string()
+        } else {
+            self.affected_files.join(", ")
+        };
+
+        format!(
+            "FAIL: patch application failed ({} of {} hunk(s) failed; files: {})",
+            self.failed_hunks, self.total_hunks, affected
+        )
+    }
+
     pub fn summary(&self) -> String {
         if self.success {
             return format!(
@@ -174,4 +195,43 @@ pub fn apply_patch(
 
 pub fn diagnose_patch(patch_file: &Path) -> PatchDiagnostic {
     apply_patch(patch_file, true, true, false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PatchDiagnostic;
+
+    #[test]
+    fn brief_summary_for_success_is_single_line() {
+        let diag = PatchDiagnostic {
+            success: true,
+            total_hunks: 2,
+            applied_hunks: 2,
+            failed_hunks: 0,
+            errors: vec![],
+            affected_files: vec!["src/lib.rs".to_string(), "README.md".to_string()],
+        };
+
+        assert_eq!(
+            diag.brief_summary(),
+            "OK: patch applied cleanly (2 hunk(s), 2 file(s))"
+        );
+    }
+
+    #[test]
+    fn brief_summary_for_failure_mentions_failed_hunks() {
+        let diag = PatchDiagnostic {
+            success: false,
+            total_hunks: 3,
+            applied_hunks: 1,
+            failed_hunks: 2,
+            errors: vec!["hunk 1 failed".to_string()],
+            affected_files: vec!["src/main.rs".to_string()],
+        };
+
+        assert_eq!(
+            diag.brief_summary(),
+            "FAIL: patch application failed (2 of 3 hunk(s) failed; files: src/main.rs)"
+        );
+    }
 }

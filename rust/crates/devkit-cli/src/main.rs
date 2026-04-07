@@ -186,14 +186,58 @@ pub enum MdCommands {
 #[derive(Subcommand, Debug)]
 pub enum PatchCommands {
     /// Diagnose patch application
-    Diagnose { file: String },
+    Diagnose {
+        file: String,
+        #[arg(long)]
+        json: bool,
+    },
     Apply {
         file: String,
         #[arg(long)]
         reject: bool,
         #[arg(long)]
         verbose: bool,
+        #[arg(long)]
+        json: bool,
     },
+}
+
+fn render_patch_diagnostic(
+    diag: &devkit_patch::PatchDiagnostic,
+    command: &str,
+    json: bool,
+    brief: bool,
+) -> Result<(), String> {
+    if json && brief {
+        return Err("`--json` and `--brief` cannot be combined for patch commands.".to_string());
+    }
+
+    if json {
+        let payload = serde_json::json!({
+            "command": command,
+            "success": diag.success,
+            "summary": if diag.success {
+                diag.brief_summary()
+            } else {
+                diag.summary()
+            },
+            "total_hunks": diag.total_hunks,
+            "applied_hunks": diag.applied_hunks,
+            "failed_hunks": diag.failed_hunks,
+            "errors": &diag.errors,
+            "affected_files": &diag.affected_files,
+        });
+        println!("{}", serde_json::to_string_pretty(&payload).unwrap());
+        return Ok(());
+    }
+
+    if brief {
+        println!("{}", diag.brief_summary());
+    } else {
+        println!("{}", diag.summary());
+    }
+
+    Ok(())
 }
 
 #[derive(Subcommand, Debug)]
@@ -532,10 +576,13 @@ fn main() {
             }
         }
         Commands::Patch { command } => match command {
-            PatchCommands::Diagnose { file } => {
+            PatchCommands::Diagnose { file, json } => {
                 let path = std::path::Path::new(file);
                 let diag = devkit_patch::diagnose_patch(path);
-                println!("{}", diag.summary());
+                if let Err(e) = render_patch_diagnostic(&diag, "diagnose", *json, cli.brief) {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(2);
+                }
                 if !diag.success {
                     std::process::exit(1);
                 }
@@ -544,10 +591,14 @@ fn main() {
                 file,
                 reject,
                 verbose,
+                json,
             } => {
                 let path = std::path::Path::new(file);
                 let diag = devkit_patch::apply_patch(path, false, *verbose, *reject);
-                println!("{}", diag.summary());
+                if let Err(e) = render_patch_diagnostic(&diag, "apply", *json, cli.brief) {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(2);
+                }
                 if !diag.success {
                     std::process::exit(1);
                 }
@@ -562,6 +613,10 @@ fn main() {
                 json,
                 files_only,
             } => {
+                if *json && cli.brief {
+                    eprintln!("Error: `--json` and `--brief` cannot be combined.");
+                    std::process::exit(2);
+                }
                 match devkit_git::diff::summarize_diff(
                     *staged,
                     base.as_deref(),
@@ -832,9 +887,5 @@ fn main() {
                 }
             }
         }
-    }
-
-    if cli.brief {
-        println!("(brief mode enabled)");
     }
 }
