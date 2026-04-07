@@ -18,16 +18,13 @@ fn format_file_list(files: &[FileDiff], limit: usize) -> String {
     if remaining > 0 {
         lines.push(format!("- ... and {} more file(s)", remaining));
     }
-    
+
     let mut res = lines.join("\n");
     res.push('\n');
     res
 }
 
-pub fn generate_impl_note(
-    summary: Option<&DiffSummary>,
-    lang: &str,
-) -> String {
+pub fn generate_impl_note(summary: Option<&DiffSummary>, lang: &str) -> String {
     if lang.to_lowercase().starts_with("ja") {
         impl_note_ja(summary)
     } else {
@@ -39,17 +36,26 @@ fn impl_note_ja(summary: Option<&DiffSummary>) -> String {
     let mut scope_label = String::new();
     let mut files_section = String::new();
     let mut stats = String::new();
-    
+
     if let Some(s) = summary {
         scope_label = s.scope.description.clone();
         files_section = format_file_list(&s.files, 15);
         stats = format!("+{}/-{}", s.total_additions, s.total_deletions);
     }
-    
-    let stats_line = if !stats.is_empty() { format!("差分統計: {}\n", stats) } else { String::new() };
-    let scope_line = if !scope_label.is_empty() { format!("スコープ: {}\n", scope_label) } else { String::new() };
 
-    format!("\
+    let stats_line = if !stats.is_empty() {
+        format!("差分統計: {}\n", stats)
+    } else {
+        String::new()
+    };
+    let scope_line = if !scope_label.is_empty() {
+        format!("スコープ: {}\n", scope_label)
+    } else {
+        String::new()
+    };
+
+    format!(
+        "\
 ## 変更概要
 <!-- 1-2文で変更の要点をまとめる -->
 
@@ -72,24 +78,35 @@ fn impl_note_ja(summary: Option<&DiffSummary>) -> String {
 ## 残課題
 <!-- 未解決の問題や今後の改善点 -->
 
-", files_section, stats_line, scope_line)
+",
+        files_section, stats_line, scope_line
+    )
 }
 
 fn impl_note_en(summary: Option<&DiffSummary>) -> String {
     let mut scope_label = String::new();
     let mut files_section = String::new();
     let mut stats = String::new();
-    
+
     if let Some(s) = summary {
         scope_label = s.scope.description.clone();
         files_section = format_file_list(&s.files, 15);
         stats = format!("+{}/-{}", s.total_additions, s.total_deletions);
     }
-    
-    let stats_line = if !stats.is_empty() { format!("Diff stats: {}\n", stats) } else { String::new() };
-    let scope_line = if !scope_label.is_empty() { format!("Scope: {}\n", scope_label) } else { String::new() };
 
-    format!("\
+    let stats_line = if !stats.is_empty() {
+        format!("Diff stats: {}\n", stats)
+    } else {
+        String::new()
+    };
+    let scope_line = if !scope_label.is_empty() {
+        format!("Scope: {}\n", scope_label)
+    } else {
+        String::new()
+    };
+
+    format!(
+        "\
 ## Summary
 <!-- Summarize the change in 1-2 sentences -->
 
@@ -112,13 +129,12 @@ fn impl_note_en(summary: Option<&DiffSummary>) -> String {
 ## Outstanding Issues
 <!-- Unresolved problems or future improvements -->
 
-", files_section, stats_line, scope_line)
+",
+        files_section, stats_line, scope_line
+    )
 }
 
-pub fn generate_benchmark_note(
-    summary: Option<&DiffSummary>,
-    lang: &str,
-) -> String {
+pub fn generate_benchmark_note(summary: Option<&DiffSummary>, lang: &str) -> String {
     if lang.to_lowercase().starts_with("ja") {
         benchmark_note_ja(summary)
     } else {
@@ -128,8 +144,9 @@ pub fn generate_benchmark_note(
 
 fn benchmark_note_ja(summary: Option<&DiffSummary>) -> String {
     let files_section = summary.map_or(String::new(), |s| format_file_list(&s.files, 15));
-    
-    format!("\
+
+    format!(
+        "\
 ## ベンチマーク概要
 <!-- 計測の目的と対象を記述 -->
 
@@ -152,13 +169,16 @@ fn benchmark_note_ja(summary: Option<&DiffSummary>) -> String {
 ## 考察
 <!-- 結果の解釈と次のアクション -->
 
-", files_section)
+",
+        files_section
+    )
 }
 
 fn benchmark_note_en(summary: Option<&DiffSummary>) -> String {
     let files_section = summary.map_or(String::new(), |s| format_file_list(&s.files, 15));
-    
-    format!("\
+
+    format!(
+        "\
 ## Benchmark Summary
 <!-- Purpose and target of the benchmark -->
 
@@ -181,5 +201,7 @@ fn benchmark_note_en(summary: Option<&DiffSummary>) -> String {
 ## Analysis
 <!-- Interpretation of results and next actions -->
 
-", files_section)
+",
+        files_section
+    )
 }

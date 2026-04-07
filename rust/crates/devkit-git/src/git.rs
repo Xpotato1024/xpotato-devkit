@@ -1,4 +1,4 @@
-use crate::diff::{build_diff_scope, summarize_diff, summarize_diff_scope, DiffScope, FileDiff};
+use crate::diff::{DiffScope, FileDiff, build_diff_scope, summarize_diff, summarize_diff_scope};
 use crate::run_git_command;
 
 fn is_japanese(lang: &str) -> bool {
@@ -88,7 +88,12 @@ fn diff_stat_for_scope(scope: &DiffScope) -> Vec<String> {
     } else {
         run_git_command(&["diff", "--stat", scope.refspec.as_deref().unwrap_or("")])
     };
-    output.unwrap_or_default().lines().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+    output
+        .unwrap_or_default()
+        .lines()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
 fn log_lines_for_scope(scope: &DiffScope) -> Vec<String> {
@@ -96,9 +101,17 @@ fn log_lines_for_scope(scope: &DiffScope) -> Vec<String> {
         return Vec::new();
     }
     if let Some(ref r) = scope.refspec {
-        let log_refspec = if r.contains("...") { r.replacen("...", "..", 1) } else { r.clone() };
+        let log_refspec = if r.contains("...") {
+            r.replacen("...", "..", 1)
+        } else {
+            r.clone()
+        };
         let output = run_git_command(&["log", "--oneline", &log_refspec]).unwrap_or_default();
-        output.lines().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        output
+            .lines()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     } else {
         Vec::new()
     }
@@ -132,7 +145,8 @@ pub fn generate_commit_template(
         Use only the factual context below."
     };
 
-    Ok(format!("\
+    Ok(format!(
+        "\
 <!--
 {}
 -->
@@ -141,7 +155,14 @@ pub fn generate_commit_template(
 # Diff summary: {} additions, {} deletions across {} file(s).
 # File summary:
 {}
-", prompt, scope_comment(&summary.scope), summary.total_additions, summary.total_deletions, summary.files.len(), format_file_summary(&summary.files)))
+",
+        prompt,
+        scope_comment(&summary.scope),
+        summary.total_additions,
+        summary.total_deletions,
+        summary.files.len(),
+        format_file_summary(&summary.files)
+    ))
 }
 
 pub fn generate_pr_template(
@@ -155,19 +176,20 @@ pub fn generate_pr_template(
         .map_err(|e| format!("Failed to collect diff context for the PR body. {}", e))?;
     let summary = summarize_diff_scope(&scope)
         .map_err(|e| format!("Failed to collect diff context for the PR body. {}", e))?;
-    
+
     let stat_lines = diff_stat_for_scope(&scope);
     let log_lines = log_lines_for_scope(&scope);
-    
+
     let stat_str_vec: Vec<&str> = stat_lines.iter().map(|s| s.as_str()).collect();
     let log_str_vec: Vec<&str> = log_lines.iter().map(|s| s.as_str()).collect();
-    
+
     let formatted_log = format_lines_with_limit(&log_str_vec, 8);
     let formatted_stat = format_lines_with_limit(&stat_str_vec, 8);
     let scope_label = scope_comment(&summary.scope);
-    
+
     if is_japanese(lang) {
-        Ok(format!("\
+        Ok(format!(
+            "\
 ## 概要
 * 変更の要点を1〜2文でまとめてください。
 
@@ -194,9 +216,12 @@ pub fn generate_pr_template(
 
 # Diff Stat:
 {}
--->", scope_label, formatted_log, formatted_stat))
+-->",
+            scope_label, formatted_log, formatted_stat
+        ))
     } else {
-        Ok(format!("\
+        Ok(format!(
+            "\
 ## Overview
 * Summarize the change in 1-2 sentences.
 
@@ -223,25 +248,39 @@ Use only the factual context below.
 
 # Diff Stat:
 {}
--->", scope_label, formatted_log, formatted_stat))
+-->",
+            scope_label, formatted_log, formatted_stat
+        ))
     }
 }
 
 pub fn check_safe_branch() -> Result<(), String> {
     let current = run_git_command(&["branch", "--show-current"]).unwrap_or_default();
     if current.is_empty() {
-        return Err("Cannot push from a detached HEAD. Please checkout a branch first.".to_string());
+        return Err(
+            "Cannot push from a detached HEAD. Please checkout a branch first.".to_string(),
+        );
     }
     if current == "main" || current == "master" {
-        return Err(format!("Direct push to {} branch is highly discouraged. Please use a feature branch.", current));
+        return Err(format!(
+            "Direct push to {} branch is highly discouraged. Please use a feature branch.",
+            current
+        ));
     }
     Ok(())
 }
 
 pub fn check_upstream() -> bool {
     if let Ok(current) = run_git_command(&["branch", "--show-current"]) {
-        if current.is_empty() { return false; }
-        return run_git_command(&["rev-parse", "--abbrev-ref", &format!("{}@{{upstream}}", current)]).is_ok();
+        if current.is_empty() {
+            return false;
+        }
+        return run_git_command(&[
+            "rev-parse",
+            "--abbrev-ref",
+            &format!("{}@{{upstream}}", current),
+        ])
+        .is_ok();
     }
     false
 }
@@ -251,7 +290,11 @@ pub fn get_upstream_remote() -> Result<String, String> {
     if current.is_empty() {
         return Err("No current branch.".to_string());
     }
-    let upstream = run_git_command(&["rev-parse", "--abbrev-ref", &format!("{}@{{upstream}}", current)])?;
+    let upstream = run_git_command(&[
+        "rev-parse",
+        "--abbrev-ref",
+        &format!("{}@{{upstream}}", current),
+    ])?;
     let remote = upstream.split('/').next().unwrap_or(&upstream);
     Ok(remote.to_string())
 }

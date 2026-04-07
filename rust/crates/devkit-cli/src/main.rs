@@ -28,24 +28,24 @@ pub enum Commands {
         /// Root directory to scan (default: current directory)
         #[arg(long)]
         path: Option<String>,
-        
+
         /// Maximum depth to descend
         #[arg(long)]
         max_depth: Option<usize>,
-        
+
         /// Comma-separated list of extensions to include (e.g. '.py,.rs')
         #[arg(long)]
         ext: Option<String>,
-        
+
         /// Show only directories
         #[arg(long)]
         dirs_only: bool,
-        
+
         /// Do not read .gitignore
         #[arg(long)]
         no_gitignore: bool,
     },
-    
+
     /// Operations on code blocks
     Block {
         #[command(subcommand)]
@@ -186,9 +186,7 @@ pub enum MdCommands {
 #[derive(Subcommand, Debug)]
 pub enum PatchCommands {
     /// Diagnose patch application
-    Diagnose {
-        file: String,
-    },
+    Diagnose { file: String },
     Apply {
         file: String,
         #[arg(long)]
@@ -290,14 +288,21 @@ pub enum GitCommands {
 
 fn main() {
     let cli = Cli::parse();
-    
+
     match &cli.command {
-        Commands::Tree { path, max_depth, ext, dirs_only, no_gitignore } => {
+        Commands::Tree {
+            path,
+            max_depth,
+            ext,
+            dirs_only,
+            no_gitignore,
+        } => {
             use std::path::PathBuf;
-            let root = path.as_ref()
+            let root = path
+                .as_ref()
                 .map(PathBuf::from)
                 .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-                
+
             let root = root.canonicalize().unwrap_or(root);
             if !root.is_dir() {
                 eprintln!("Error: {} is not a directory.", root.display());
@@ -311,8 +316,8 @@ fn main() {
 
             let extensions = ext.as_ref().map(|e| {
                 e.split(',')
-                 .map(|s| s.trim().to_string())
-                 .collect::<Vec<_>>()
+                    .map(|s| s.trim().to_string())
+                    .collect::<Vec<_>>()
             });
 
             let entry = devkit_tree::scan_tree(
@@ -331,81 +336,101 @@ fn main() {
             }
             println!("{}", devkit_tree::tree_summary(&entry));
         }
-        Commands::Block { command } => {
-            match command {
-                BlockCommands::Outline { file, imports, docstrings } => {
-                    let path = std::path::Path::new(file);
-                    match devkit_block::outline_file(path, *imports, *docstrings) {
-                        Ok(lines) => {
-                            for line in lines {
-                                println!("{}", line);
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            std::process::exit(1);
+        Commands::Block { command } => match command {
+            BlockCommands::Outline {
+                file,
+                imports,
+                docstrings,
+            } => {
+                let path = std::path::Path::new(file);
+                match devkit_block::outline_file(path, *imports, *docstrings) {
+                    Ok(lines) => {
+                        for line in lines {
+                            println!("{}", line);
                         }
                     }
-                }
-                BlockCommands::Context { file, function, margin } => {
-                    let path = std::path::Path::new(file);
-                    match devkit_block::extract_context(path, function, *margin) {
-                        Ok(ctx) => print!("{}", ctx),
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                BlockCommands::Extract { file, lines, marker, heading, function } => {
-                    let path = std::path::Path::new(file);
-                    match devkit_block::extract_block(
-                        path,
-                        lines.as_deref(),
-                        marker.as_deref(),
-                        heading.as_deref(),
-                        function.as_deref(),
-                    ) {
-                        Ok(block) => print!("{}", block),
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                BlockCommands::Replace { file, with_file, lines, marker, heading, function, dry_run } => {
-                    let path = std::path::Path::new(file);
-                    let with_path = std::path::Path::new(with_file);
-                    let replacement = std::fs::read_to_string(with_path).unwrap_or_else(|e| {
-                        eprintln!("Error reading replacement file: {}", e);
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
                         std::process::exit(1);
-                    });
-                    match devkit_block::replace_block(
-                        path,
-                        &replacement,
-                        lines.as_deref(),
-                        marker.as_deref(),
-                        heading.as_deref(),
-                        function.as_deref(),
-                        *dry_run,
-                    ) {
-                        Ok((old, new_b)) => {
-                            if *dry_run {
-                                println!("DRY RUN: file was not modified.");
-                                let diff = devkit_block::diff_preview(&old, &new_b, path);
-                                print!("{}", diff);
-                            } else {
-                                println!("Successfully replaced block in {}", file);
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            std::process::exit(1);
-                        }
                     }
                 }
             }
-        }
+            BlockCommands::Context {
+                file,
+                function,
+                margin,
+            } => {
+                let path = std::path::Path::new(file);
+                match devkit_block::extract_context(path, function, *margin) {
+                    Ok(ctx) => print!("{}", ctx),
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            BlockCommands::Extract {
+                file,
+                lines,
+                marker,
+                heading,
+                function,
+            } => {
+                let path = std::path::Path::new(file);
+                match devkit_block::extract_block(
+                    path,
+                    lines.as_deref(),
+                    marker.as_deref(),
+                    heading.as_deref(),
+                    function.as_deref(),
+                ) {
+                    Ok(block) => print!("{}", block),
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            BlockCommands::Replace {
+                file,
+                with_file,
+                lines,
+                marker,
+                heading,
+                function,
+                dry_run,
+            } => {
+                let path = std::path::Path::new(file);
+                let with_path = std::path::Path::new(with_file);
+                let replacement = std::fs::read_to_string(with_path).unwrap_or_else(|e| {
+                    eprintln!("Error reading replacement file: {}", e);
+                    std::process::exit(1);
+                });
+                match devkit_block::replace_block(
+                    path,
+                    &replacement,
+                    lines.as_deref(),
+                    marker.as_deref(),
+                    heading.as_deref(),
+                    function.as_deref(),
+                    *dry_run,
+                ) {
+                    Ok((old, new_b)) => {
+                        if *dry_run {
+                            println!("DRY RUN: file was not modified.");
+                            let diff = devkit_block::diff_preview(&old, &new_b, path);
+                            print!("{}", diff);
+                        } else {
+                            println!("Successfully replaced block in {}", file);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        },
         Commands::Md { command } => {
             let get_content = |c: &Option<String>, w: &Option<String>| -> String {
                 if let Some(text) = c {
@@ -419,109 +444,207 @@ fn main() {
                     String::new()
                 }
             };
-            
+
             match command {
-                MdCommands::AppendSection { file, heading, content, with_file, dry_run } => {
+                MdCommands::AppendSection {
+                    file,
+                    heading,
+                    content,
+                    with_file,
+                    dry_run,
+                } => {
                     let path = std::path::Path::new(file);
                     let body = get_content(content, with_file);
                     match devkit_md::append_to_section(path, heading, body, *dry_run) {
                         Ok(_) => println!("Successfully appended to section '{}'", heading),
-                        Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            std::process::exit(1);
+                        }
                     }
                 }
-                MdCommands::ReplaceSection { file, heading, content, with_file, no_keep_heading, dry_run } => {
+                MdCommands::ReplaceSection {
+                    file,
+                    heading,
+                    content,
+                    with_file,
+                    no_keep_heading,
+                    dry_run,
+                } => {
                     let path = std::path::Path::new(file);
                     let body = get_content(content, with_file);
-                    match devkit_md::replace_section(path, heading, body, !*no_keep_heading, *dry_run) {
+                    match devkit_md::replace_section(
+                        path,
+                        heading,
+                        body,
+                        !*no_keep_heading,
+                        *dry_run,
+                    ) {
                         Ok(_) => println!("Successfully replaced section '{}'", heading),
-                        Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            std::process::exit(1);
+                        }
                     }
                 }
-                MdCommands::EnsureSection { file, heading, content, with_file, level, after, dry_run } => {
+                MdCommands::EnsureSection {
+                    file,
+                    heading,
+                    content,
+                    with_file,
+                    level,
+                    after,
+                    dry_run,
+                } => {
                     let path = std::path::Path::new(file);
                     let body = get_content(content, with_file);
-                    match devkit_md::ensure_section(path, heading, body, *level, after.as_deref(), *dry_run) {
+                    match devkit_md::ensure_section(
+                        path,
+                        heading,
+                        body,
+                        *level,
+                        after.as_deref(),
+                        *dry_run,
+                    ) {
                         Ok(_) => println!("Successfully ensured section '{}'", heading),
-                        Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            std::process::exit(1);
+                        }
                     }
                 }
-                MdCommands::AppendBullet { file, heading, bullet, dedupe, dry_run } => {
+                MdCommands::AppendBullet {
+                    file,
+                    heading,
+                    bullet,
+                    dedupe,
+                    dry_run,
+                } => {
                     let path = std::path::Path::new(file);
                     match devkit_md::append_bullet(path, heading, bullet, *dedupe, *dry_run) {
                         Ok(_) => println!("Successfully appended bullet to '{}'", heading),
-                        Err(e) => { eprintln!("Error: {}", e); std::process::exit(1); }
-                    }
-                }
-            }
-        }
-        Commands::Patch { command } => {
-            match command {
-                PatchCommands::Diagnose { file } => {
-                    let path = std::path::Path::new(file);
-                    let diag = devkit_patch::diagnose_patch(path);
-                    println!("{}", diag.summary());
-                    if !diag.success {
-                        std::process::exit(1);
-                    }
-                }
-                PatchCommands::Apply { file, reject, verbose } => {
-                    let path = std::path::Path::new(file);
-                    let diag = devkit_patch::apply_patch(path, false, *verbose, *reject);
-                    println!("{}", diag.summary());
-                    if !diag.success {
-                        std::process::exit(1);
-                    }
-                }
-            }
-        }
-        Commands::Diff { command } => {
-            match command {
-                DiffCommands::Summarize { staged, base, head, commits, json, files_only } => {
-                    match devkit_git::diff::summarize_diff(*staged, base.as_deref(), head.as_deref(), commits.as_deref()) {
-                        Ok(summary) => {
-                            if *json {
-                                println!("{}", serde_json::to_string_pretty(&summary).unwrap());
-                            } else if *files_only {
-                                for f in &summary.files {
-                                    println!("{}", f.path);
-                                }
-                            } else if cli.brief {
-                                println!("OK: {} files, +{}/-{}", summary.files.len(), summary.total_additions, summary.total_deletions);
-                            } else {
-                                println!("Diff Summary ({})", summary.scope.description);
-                                println!("{:-<50}", "-");
-                                println!("{:<40} {:>5} {:>5}", "File", "(+)", "(-)");
-                                for f in &summary.files {
-                                    let adds = if f.is_binary { "bin".to_string() } else { f.additions.to_string() };
-                                    let dels = if f.is_binary { "bin".to_string() } else { f.deletions.to_string() };
-                                    println!("{:<40} {:>5} {:>5}", f.path, adds, dels);
-                                }
-                                println!("{:-<50}", "-");
-                                println!("{:<40} {:>5} {:>5}", "Total", summary.total_additions, summary.total_deletions);
-                            }
-                        }
                         Err(e) => {
-                            if cli.brief {
-                                println!("FAIL: {}", e);
-                            } else {
-                                eprintln!("Error: {}", e);
-                            }
+                            eprintln!("Error: {}", e);
                             std::process::exit(1);
                         }
                     }
                 }
             }
         }
+        Commands::Patch { command } => match command {
+            PatchCommands::Diagnose { file } => {
+                let path = std::path::Path::new(file);
+                let diag = devkit_patch::diagnose_patch(path);
+                println!("{}", diag.summary());
+                if !diag.success {
+                    std::process::exit(1);
+                }
+            }
+            PatchCommands::Apply {
+                file,
+                reject,
+                verbose,
+            } => {
+                let path = std::path::Path::new(file);
+                let diag = devkit_patch::apply_patch(path, false, *verbose, *reject);
+                println!("{}", diag.summary());
+                if !diag.success {
+                    std::process::exit(1);
+                }
+            }
+        },
+        Commands::Diff { command } => match command {
+            DiffCommands::Summarize {
+                staged,
+                base,
+                head,
+                commits,
+                json,
+                files_only,
+            } => {
+                match devkit_git::diff::summarize_diff(
+                    *staged,
+                    base.as_deref(),
+                    head.as_deref(),
+                    commits.as_deref(),
+                ) {
+                    Ok(summary) => {
+                        if *json {
+                            println!("{}", serde_json::to_string_pretty(&summary).unwrap());
+                        } else if *files_only {
+                            for f in &summary.files {
+                                println!("{}", f.path);
+                            }
+                        } else if cli.brief {
+                            println!(
+                                "OK: {} files, +{}/-{}",
+                                summary.files.len(),
+                                summary.total_additions,
+                                summary.total_deletions
+                            );
+                        } else {
+                            println!("Diff Summary ({})", summary.scope.description);
+                            println!("{:-<50}", "-");
+                            println!("{:<40} {:>5} {:>5}", "File", "(+)", "(-)");
+                            for f in &summary.files {
+                                let adds = if f.is_binary {
+                                    "bin".to_string()
+                                } else {
+                                    f.additions.to_string()
+                                };
+                                let dels = if f.is_binary {
+                                    "bin".to_string()
+                                } else {
+                                    f.deletions.to_string()
+                                };
+                                println!("{:<40} {:>5} {:>5}", f.path, adds, dels);
+                            }
+                            println!("{:-<50}", "-");
+                            println!(
+                                "{:<40} {:>5} {:>5}",
+                                "Total", summary.total_additions, summary.total_deletions
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        if cli.brief {
+                            println!("FAIL: {}", e);
+                        } else {
+                            eprintln!("Error: {}", e);
+                        }
+                        std::process::exit(1);
+                    }
+                }
+            }
+        },
         Commands::Doc { command } => {
             let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
             let config = devkit_core::load_config(&root).unwrap_or_default();
-            
+
             match command {
-                DocCommands::ImplNote { staged, base, head, commits, lang, output } => {
-                    let conf_lang = if config.git.lang.is_empty() { "ja" } else { config.git.lang.as_str() };
+                DocCommands::ImplNote {
+                    staged,
+                    base,
+                    head,
+                    commits,
+                    lang,
+                    output,
+                } => {
+                    let conf_lang = if config.git.lang.is_empty() {
+                        "ja"
+                    } else {
+                        config.git.lang.as_str()
+                    };
                     let lang_to_use = lang.as_deref().unwrap_or(conf_lang);
-                    let summary = devkit_git::diff::summarize_diff(*staged, base.as_deref(), head.as_deref(), commits.as_deref()).ok();
-                    let content = devkit_git::doc::generate_impl_note(summary.as_ref(), lang_to_use);
+                    let summary = devkit_git::diff::summarize_diff(
+                        *staged,
+                        base.as_deref(),
+                        head.as_deref(),
+                        commits.as_deref(),
+                    )
+                    .ok();
+                    let content =
+                        devkit_git::doc::generate_impl_note(summary.as_ref(), lang_to_use);
                     if let Some(path) = output {
                         if std::fs::write(path, &content).is_ok() {
                             println!("Implementation note template written to {}", path);
@@ -532,11 +655,29 @@ fn main() {
                         print!("{}", content);
                     }
                 }
-                DocCommands::BenchmarkNote { staged, base, head, commits, lang, output } => {
-                    let conf_lang = if config.git.lang.is_empty() { "ja" } else { config.git.lang.as_str() };
+                DocCommands::BenchmarkNote {
+                    staged,
+                    base,
+                    head,
+                    commits,
+                    lang,
+                    output,
+                } => {
+                    let conf_lang = if config.git.lang.is_empty() {
+                        "ja"
+                    } else {
+                        config.git.lang.as_str()
+                    };
                     let lang_to_use = lang.as_deref().unwrap_or(conf_lang);
-                    let summary = devkit_git::diff::summarize_diff(*staged, base.as_deref(), head.as_deref(), commits.as_deref()).ok();
-                    let content = devkit_git::doc::generate_benchmark_note(summary.as_ref(), lang_to_use);
+                    let summary = devkit_git::diff::summarize_diff(
+                        *staged,
+                        base.as_deref(),
+                        head.as_deref(),
+                        commits.as_deref(),
+                    )
+                    .ok();
+                    let content =
+                        devkit_git::doc::generate_benchmark_note(summary.as_ref(), lang_to_use);
                     if let Some(path) = output {
                         if std::fs::write(path, &content).is_ok() {
                             println!("Benchmark note template written to {}", path);
@@ -552,12 +693,29 @@ fn main() {
         Commands::Git { command } => {
             let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
             let config = devkit_core::load_config(&root).unwrap_or_default();
-            
+
             match command {
-                GitCommands::CommitMessage { staged, base, head, commits, lang, output } => {
-                    let conf_lang = if config.git.lang.is_empty() { "ja" } else { config.git.lang.as_str() };
+                GitCommands::CommitMessage {
+                    staged,
+                    base,
+                    head,
+                    commits,
+                    lang,
+                    output,
+                } => {
+                    let conf_lang = if config.git.lang.is_empty() {
+                        "ja"
+                    } else {
+                        config.git.lang.as_str()
+                    };
                     let lang_to_use = lang.as_deref().unwrap_or(conf_lang);
-                    match devkit_git::git::generate_commit_template(*staged, base.as_deref(), head.as_deref(), commits.as_deref(), lang_to_use) {
+                    match devkit_git::git::generate_commit_template(
+                        *staged,
+                        base.as_deref(),
+                        head.as_deref(),
+                        commits.as_deref(),
+                        lang_to_use,
+                    ) {
                         Ok(content) => {
                             if let Some(path) = output {
                                 if std::fs::write(path, &content).is_ok() {
@@ -575,10 +733,27 @@ fn main() {
                         }
                     }
                 }
-                GitCommands::PrBody { staged, base, head, commits, lang, output } => {
-                    let conf_lang = if config.git.lang.is_empty() { "ja" } else { config.git.lang.as_str() };
+                GitCommands::PrBody {
+                    staged,
+                    base,
+                    head,
+                    commits,
+                    lang,
+                    output,
+                } => {
+                    let conf_lang = if config.git.lang.is_empty() {
+                        "ja"
+                    } else {
+                        config.git.lang.as_str()
+                    };
                     let lang_to_use = lang.as_deref().unwrap_or(conf_lang);
-                    match devkit_git::git::generate_pr_template(*staged, base.as_deref(), head.as_deref(), commits.as_deref(), lang_to_use) {
+                    match devkit_git::git::generate_pr_template(
+                        *staged,
+                        base.as_deref(),
+                        head.as_deref(),
+                        commits.as_deref(),
+                        lang_to_use,
+                    ) {
                         Ok(content) => {
                             if let Some(path) = output {
                                 if std::fs::write(path, &content).is_ok() {
@@ -596,14 +771,18 @@ fn main() {
                         }
                     }
                 }
-                GitCommands::SafePush { yes, no_confirm, remote } => {
+                GitCommands::SafePush {
+                    yes,
+                    no_confirm,
+                    remote,
+                } => {
                     if let Err(e) = devkit_git::git::check_safe_branch() {
                         eprintln!("Safety Check Failed: {}", e);
                         std::process::exit(1);
                     }
                     let current = devkit_git::git::get_current_branch().unwrap_or_default();
                     println!("Pushing branch {}...", current);
-                    
+
                     let mut args = vec!["push"];
                     let mut tracking_set = false;
                     let target_remote;
@@ -616,20 +795,24 @@ fn main() {
                             tracking_set = true;
                             target_remote = r.clone();
                         } else {
-                            eprintln!("No upstream is configured for this branch. Use --remote to set one.");
+                            eprintln!(
+                                "No upstream is configured for this branch. Use --remote to set one."
+                            );
                             std::process::exit(1);
                         }
                     } else {
                         target_remote = devkit_git::git::get_upstream_remote().unwrap_or_default();
                     }
-                    
+
                     let do_push = *yes || *no_confirm;
                     if !do_push {
-                        println!("Dry run mode or interactive prompt not implemented in Rust safe-push yet.");
+                        println!(
+                            "Dry run mode or interactive prompt not implemented in Rust safe-push yet."
+                        );
                         println!("Use --yes to confirm.");
                         std::process::exit(1);
                     }
-                    
+
                     let status = std::process::Command::new("git").args(&args).status();
                     if let Ok(st) = status {
                         if !st.success() {
@@ -637,7 +820,10 @@ fn main() {
                             std::process::exit(1);
                         } else {
                             let track_msg = if tracking_set { "set" } else { "unchanged" };
-                            println!("Successfully pushed branch {} to {}. Tracking: {}.", current, target_remote, track_msg);
+                            println!(
+                                "Successfully pushed branch {} to {}. Tracking: {}.",
+                                current, target_remote, track_msg
+                            );
                         }
                     } else {
                         eprintln!("Push failed to execute.");

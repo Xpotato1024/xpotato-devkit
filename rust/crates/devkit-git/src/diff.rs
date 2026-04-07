@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::run_git_command;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScopeDesc {
@@ -39,7 +39,9 @@ pub fn build_diff_scope(
     commits: Option<&str>,
 ) -> Result<DiffScope, String> {
     if commits.is_some() && (staged || base.is_some() || head.is_some()) {
-        return Err("`--commits` cannot be combined with `--staged` or `--base/--head`.".to_string());
+        return Err(
+            "`--commits` cannot be combined with `--staged` or `--base/--head`.".to_string(),
+        );
     }
     if staged && (base.is_some() || head.is_some()) {
         return Err("`--staged` cannot be combined with `--base/--head`.".to_string());
@@ -52,7 +54,11 @@ pub fn build_diff_scope(
         return Ok(DiffScope {
             mode: "commits".to_string(),
             description: format!("commit range {}", commits),
-            diff_args: vec!["diff".to_string(), "--numstat".to_string(), commits.to_string()],
+            diff_args: vec![
+                "diff".to_string(),
+                "--numstat".to_string(),
+                commits.to_string(),
+            ],
             refspec: Some(commits.to_string()),
         });
     }
@@ -69,7 +75,11 @@ pub fn build_diff_scope(
         return Ok(DiffScope {
             mode: "staged".to_string(),
             description: "staged changes".to_string(),
-            diff_args: vec!["diff".to_string(), "--numstat".to_string(), "--staged".to_string()],
+            diff_args: vec![
+                "diff".to_string(),
+                "--numstat".to_string(),
+                "--staged".to_string(),
+            ],
             refspec: None,
         });
     }
@@ -104,17 +114,29 @@ pub fn summarize_diff_scope(scope: &DiffScope) -> Result<DiffSummary, String> {
 
     for line in output.lines() {
         let line = line.trim();
-        if line.is_empty() { continue; }
-        
+        if line.is_empty() {
+            continue;
+        }
+
         let mut parts = line.split('\t');
         let adds = parts.next().unwrap_or("").trim();
         let dels = parts.next().unwrap_or("").trim();
         let fname = parts.next().unwrap_or("").trim();
-        
-        if adds.is_empty() || dels.is_empty() || fname.is_empty() { continue; }
 
-        let adds_count = if adds != "-" { adds.parse().unwrap_or(0) } else { 0 };
-        let dels_count = if dels != "-" { dels.parse().unwrap_or(0) } else { 0 };
+        if adds.is_empty() || dels.is_empty() || fname.is_empty() {
+            continue;
+        }
+
+        let adds_count = if adds != "-" {
+            adds.parse().unwrap_or(0)
+        } else {
+            0
+        };
+        let dels_count = if dels != "-" {
+            dels.parse().unwrap_or(0)
+        } else {
+            0
+        };
 
         total_additions += adds_count;
         total_deletions += dels_count;

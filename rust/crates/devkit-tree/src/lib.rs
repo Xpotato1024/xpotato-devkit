@@ -1,6 +1,6 @@
+use ignore::{WalkBuilder, overrides::OverrideBuilder};
 use std::collections::BTreeMap;
 use std::path::Path;
-use ignore::{WalkBuilder, overrides::OverrideBuilder};
 
 #[derive(Debug)]
 pub struct TreeEntry {
@@ -30,7 +30,7 @@ pub fn scan_tree(
     extra_ignore: &[String],
 ) -> TreeEntry {
     let mut builder = WalkBuilder::new(root);
-    
+
     let mut ov = OverrideBuilder::new(root);
     for ig in extra_ignore {
         if let Err(_) = ov.add(&format!("!{}", ig)) {}
@@ -42,17 +42,28 @@ pub fn scan_tree(
     if let Some(depth) = max_depth {
         builder.max_depth(Some(depth));
     }
-    
+
     if !use_gitignore {
-        builder.git_ignore(false).git_global(false).git_exclude(false);
+        builder
+            .git_ignore(false)
+            .git_global(false)
+            .git_exclude(false);
     }
     builder.hidden(false);
 
     let walker = builder.build();
 
-    let name = root.file_name().unwrap_or_default().to_string_lossy().to_string();
+    let name = root
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
     let mut root_entry = TreeEntry::new(
-        if name.is_empty() { ".".to_string() } else { name },
+        if name.is_empty() {
+            ".".to_string()
+        } else {
+            name
+        },
         true,
         0,
     );
@@ -71,7 +82,8 @@ pub fn scan_tree(
 
             if !is_dir {
                 if let Some(exts) = extensions {
-                    let ext = path.extension()
+                    let ext = path
+                        .extension()
                         .map(|s| s.to_string_lossy().to_lowercase())
                         .unwrap_or_default();
                     if !exts.iter().any(|e| e.trim_start_matches('.') == ext) {
@@ -90,11 +102,16 @@ pub fn scan_tree(
                     } else {
                         true
                     };
-                    let size = if c_is_dir { 0 } else { entry.metadata().map(|m| m.len()).unwrap_or(0) };
-                    
-                    current = current.children.entry(name.clone()).or_insert_with(|| {
-                        TreeEntry::new(name, c_is_dir, size)
-                    });
+                    let size = if c_is_dir {
+                        0
+                    } else {
+                        entry.metadata().map(|m| m.len()).unwrap_or(0)
+                    };
+
+                    current = current
+                        .children
+                        .entry(name.clone())
+                        .or_insert_with(|| TreeEntry::new(name, c_is_dir, size));
                 }
             }
         }
@@ -121,7 +138,13 @@ fn prune_empty_dirs(entry: &mut TreeEntry) -> bool {
     !entry.children.is_empty() || !entry.is_dir
 }
 
-pub fn format_tree(entry: &TreeEntry, prefix: &str, is_last: bool, is_root: bool, lines: &mut Vec<String>) {
+pub fn format_tree(
+    entry: &TreeEntry,
+    prefix: &str,
+    is_last: bool,
+    is_root: bool,
+    lines: &mut Vec<String>,
+) {
     let display = if is_root {
         format!("{}/", entry.name)
     } else {
@@ -140,12 +163,18 @@ pub fn format_tree(entry: &TreeEntry, prefix: &str, is_last: bool, is_root: bool
     }
 
     if entry.is_dir {
-        let child_prefix = format!("{}{}", prefix, if is_last || is_root { "    " } else { "│   " });
+        let child_prefix = format!(
+            "{}{}",
+            prefix,
+            if is_last || is_root { "    " } else { "│   " }
+        );
         let mut sorted_children: Vec<_> = entry.children.values().collect();
         sorted_children.sort_by(|a, b| {
-            b.is_dir.cmp(&a.is_dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+            b.is_dir
+                .cmp(&a.is_dir)
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
         });
-        
+
         let len = sorted_children.len();
         for (i, child) in sorted_children.iter().enumerate() {
             format_tree(child, &child_prefix, i == len - 1, false, lines);
@@ -154,9 +183,13 @@ pub fn format_tree(entry: &TreeEntry, prefix: &str, is_last: bool, is_root: bool
 }
 
 fn format_size(size: u64) -> String {
-    if size < 1024 { return format!("{}B", size); }
+    if size < 1024 {
+        return format!("{}B", size);
+    }
     let size_f = size as f64;
-    if size_f < 1024.0 * 1024.0 { return format!("{:.1}KB", size_f / 1024.0); }
+    if size_f < 1024.0 * 1024.0 {
+        return format!("{:.1}KB", size_f / 1024.0);
+    }
     format!("{:.1}MB", size_f / (1024.0 * 1024.0))
 }
 
