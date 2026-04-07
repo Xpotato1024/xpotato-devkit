@@ -1,14 +1,19 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use std::process::Command;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod diff;
+pub mod doc;
+pub mod git;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+pub fn run_git_command(args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(args)
+        .output()
+        .map_err(|e| format!("Failed to execute git: {}", e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let error_msg = if !stderr.is_empty() { stderr } else { stdout };
+        return Err(format!("Git command failed: {}", error_msg));
     }
+    Ok(stdout)
 }

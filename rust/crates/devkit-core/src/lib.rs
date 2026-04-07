@@ -6,6 +6,14 @@ use std::fs;
 pub struct DevkitConfig {
     #[serde(default)]
     pub encoding: EncodingConfig,
+    #[serde(default)]
+    pub git: GitConfig,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct GitConfig {
+    #[serde(default)]
+    pub lang: String,
 }
 
 #[derive(Debug, Default, Deserialize)]

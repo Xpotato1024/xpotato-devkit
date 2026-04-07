@@ -58,6 +58,12 @@ pub enum Commands {
         command: MdCommands,
     },
 
+    /// Diff operations
+    Diff {
+        #[command(subcommand)]
+        command: DiffCommands,
+    },
+
     /// Patch diagnostics and application
     Patch {
         #[command(subcommand)]
@@ -193,16 +199,93 @@ pub enum PatchCommands {
 }
 
 #[derive(Subcommand, Debug)]
+pub enum DiffCommands {
+    Summarize {
+        #[arg(long)]
+        staged: bool,
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        head: Option<String>,
+        #[arg(long)]
+        commits: Option<String>,
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        files_only: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 pub enum DocCommands {
-    ImplNote,
-    BenchmarkNote,
+    ImplNote {
+        #[arg(long)]
+        staged: bool,
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        head: Option<String>,
+        #[arg(long)]
+        commits: Option<String>,
+        #[arg(long)]
+        lang: Option<String>,
+        #[arg(long)]
+        output: Option<String>,
+    },
+    BenchmarkNote {
+        #[arg(long)]
+        staged: bool,
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        head: Option<String>,
+        #[arg(long)]
+        commits: Option<String>,
+        #[arg(long)]
+        lang: Option<String>,
+        #[arg(long)]
+        output: Option<String>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
 pub enum GitCommands {
-    CommitMessage,
-    PrBody,
-    SafePush,
+    CommitMessage {
+        #[arg(long)]
+        staged: bool,
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        head: Option<String>,
+        #[arg(long)]
+        commits: Option<String>,
+        #[arg(long)]
+        lang: Option<String>,
+        #[arg(long)]
+        output: Option<String>,
+    },
+    PrBody {
+        #[arg(long)]
+        staged: bool,
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        head: Option<String>,
+        #[arg(long)]
+        commits: Option<String>,
+        #[arg(long)]
+        lang: Option<String>,
+        #[arg(long)]
+        output: Option<String>,
+    },
+    SafePush {
+        #[arg(long, short = 'y')]
+        yes: bool,
+        #[arg(long)]
+        no_confirm: bool,
+        #[arg(long)]
+        remote: Option<String>,
+    },
 }
 
 fn main() {
@@ -391,8 +474,178 @@ fn main() {
                 }
             }
         }
-        Commands::Doc { command } => println!("doc {:?}: Not implemented yet", command),
-        Commands::Git { command } => println!("git {:?}: Not implemented yet", command),
+        Commands::Diff { command } => {
+            match command {
+                DiffCommands::Summarize { staged, base, head, commits, json, files_only } => {
+                    match devkit_git::diff::summarize_diff(*staged, base.as_deref(), head.as_deref(), commits.as_deref()) {
+                        Ok(summary) => {
+                            if *json {
+                                println!("{}", serde_json::to_string_pretty(&summary).unwrap());
+                            } else if *files_only {
+                                for f in &summary.files {
+                                    println!("{}", f.path);
+                                }
+                            } else if cli.brief {
+                                println!("OK: {} files, +{}/-{}", summary.files.len(), summary.total_additions, summary.total_deletions);
+                            } else {
+                                println!("Diff Summary ({})", summary.scope.description);
+                                println!("{:-<50}", "-");
+                                println!("{:<40} {:>5} {:>5}", "File", "(+)", "(-)");
+                                for f in &summary.files {
+                                    let adds = if f.is_binary { "bin".to_string() } else { f.additions.to_string() };
+                                    let dels = if f.is_binary { "bin".to_string() } else { f.deletions.to_string() };
+                                    println!("{:<40} {:>5} {:>5}", f.path, adds, dels);
+                                }
+                                println!("{:-<50}", "-");
+                                println!("{:<40} {:>5} {:>5}", "Total", summary.total_additions, summary.total_deletions);
+                            }
+                        }
+                        Err(e) => {
+                            if cli.brief {
+                                println!("FAIL: {}", e);
+                            } else {
+                                eprintln!("Error: {}", e);
+                            }
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
+        Commands::Doc { command } => {
+            let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let config = devkit_core::load_config(&root).unwrap_or_default();
+            
+            match command {
+                DocCommands::ImplNote { staged, base, head, commits, lang, output } => {
+                    let conf_lang = if config.git.lang.is_empty() { "ja" } else { config.git.lang.as_str() };
+                    let lang_to_use = lang.as_deref().unwrap_or(conf_lang);
+                    let summary = devkit_git::diff::summarize_diff(*staged, base.as_deref(), head.as_deref(), commits.as_deref()).ok();
+                    let content = devkit_git::doc::generate_impl_note(summary.as_ref(), lang_to_use);
+                    if let Some(path) = output {
+                        if std::fs::write(path, &content).is_ok() {
+                            println!("Implementation note template written to {}", path);
+                        } else {
+                            eprintln!("Failed to write to {}", path);
+                        }
+                    } else {
+                        print!("{}", content);
+                    }
+                }
+                DocCommands::BenchmarkNote { staged, base, head, commits, lang, output } => {
+                    let conf_lang = if config.git.lang.is_empty() { "ja" } else { config.git.lang.as_str() };
+                    let lang_to_use = lang.as_deref().unwrap_or(conf_lang);
+                    let summary = devkit_git::diff::summarize_diff(*staged, base.as_deref(), head.as_deref(), commits.as_deref()).ok();
+                    let content = devkit_git::doc::generate_benchmark_note(summary.as_ref(), lang_to_use);
+                    if let Some(path) = output {
+                        if std::fs::write(path, &content).is_ok() {
+                            println!("Benchmark note template written to {}", path);
+                        } else {
+                            eprintln!("Failed to write to {}", path);
+                        }
+                    } else {
+                        print!("{}", content);
+                    }
+                }
+            }
+        }
+        Commands::Git { command } => {
+            let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let config = devkit_core::load_config(&root).unwrap_or_default();
+            
+            match command {
+                GitCommands::CommitMessage { staged, base, head, commits, lang, output } => {
+                    let conf_lang = if config.git.lang.is_empty() { "ja" } else { config.git.lang.as_str() };
+                    let lang_to_use = lang.as_deref().unwrap_or(conf_lang);
+                    match devkit_git::git::generate_commit_template(*staged, base.as_deref(), head.as_deref(), commits.as_deref(), lang_to_use) {
+                        Ok(content) => {
+                            if let Some(path) = output {
+                                if std::fs::write(path, &content).is_ok() {
+                                    println!("Commit message template written to {}", path);
+                                } else {
+                                    eprintln!("Failed to write to {}", path);
+                                }
+                            } else {
+                                print!("{}", content);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                GitCommands::PrBody { staged, base, head, commits, lang, output } => {
+                    let conf_lang = if config.git.lang.is_empty() { "ja" } else { config.git.lang.as_str() };
+                    let lang_to_use = lang.as_deref().unwrap_or(conf_lang);
+                    match devkit_git::git::generate_pr_template(*staged, base.as_deref(), head.as_deref(), commits.as_deref(), lang_to_use) {
+                        Ok(content) => {
+                            if let Some(path) = output {
+                                if std::fs::write(path, &content).is_ok() {
+                                    println!("PR body template written to {}", path);
+                                } else {
+                                    eprintln!("Failed to write to {}", path);
+                                }
+                            } else {
+                                print!("{}", content);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                GitCommands::SafePush { yes, no_confirm, remote } => {
+                    if let Err(e) = devkit_git::git::check_safe_branch() {
+                        eprintln!("Safety Check Failed: {}", e);
+                        std::process::exit(1);
+                    }
+                    let current = devkit_git::git::get_current_branch().unwrap_or_default();
+                    println!("Pushing branch {}...", current);
+                    
+                    let mut args = vec!["push"];
+                    let mut tracking_set = false;
+                    let target_remote;
+                    if !devkit_git::git::check_upstream() {
+                        if let Some(r) = remote.as_ref() {
+                            println!("No upstream set. Will automatically set upstream to {}.", r);
+                            args.push("-u");
+                            args.push(r.as_str());
+                            args.push(current.as_str());
+                            tracking_set = true;
+                            target_remote = r.clone();
+                        } else {
+                            eprintln!("No upstream is configured for this branch. Use --remote to set one.");
+                            std::process::exit(1);
+                        }
+                    } else {
+                        target_remote = devkit_git::git::get_upstream_remote().unwrap_or_default();
+                    }
+                    
+                    let do_push = *yes || *no_confirm;
+                    if !do_push {
+                        println!("Dry run mode or interactive prompt not implemented in Rust safe-push yet.");
+                        println!("Use --yes to confirm.");
+                        std::process::exit(1);
+                    }
+                    
+                    let status = std::process::Command::new("git").args(&args).status();
+                    if let Ok(st) = status {
+                        if !st.success() {
+                            eprintln!("Push failed.");
+                            std::process::exit(1);
+                        } else {
+                            let track_msg = if tracking_set { "set" } else { "unchanged" };
+                            println!("Successfully pushed branch {} to {}. Tracking: {}.", current, target_remote, track_msg);
+                        }
+                    } else {
+                        eprintln!("Push failed to execute.");
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
     }
 
     if cli.brief {
