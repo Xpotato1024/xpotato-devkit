@@ -102,8 +102,8 @@ fn find_section(
     let content_start = start_idx + 1;
     let mut end_idx = lines.len();
 
-    for i in (start_idx + 1)..lines.len() {
-        let cur_level = heading_level(lines[i]);
+    for (i, line) in lines.iter().enumerate().skip(start_idx + 1) {
+        let cur_level = heading_level(line);
         if cur_level > 0 && cur_level <= level {
             end_idx = i;
             break;
@@ -113,7 +113,7 @@ fn find_section(
     Ok((start_idx, content_start, end_idx))
 }
 
-fn get_lines<'a>(body: &'a str) -> Vec<&'a str> {
+fn get_lines(body: &str) -> Vec<&str> {
     let mut raw_lines = Vec::new();
     let mut last = 0;
     for (i, _) in body.match_indices('\n') {
@@ -237,7 +237,7 @@ pub fn ensure_section(
         for line in &lines[..end_idx] {
             result.push_str(line);
         }
-        result.push_str("\n");
+        result.push('\n');
         result.push_str(&block);
         for line in &lines[end_idx..] {
             result.push_str(line);
@@ -247,7 +247,7 @@ pub fn ensure_section(
             result.push_str(line);
         }
         if !lines.is_empty() && !lines.last().unwrap().trim().is_empty() {
-            result.push_str("\n");
+            result.push('\n');
         }
         result.push_str(&block);
     }
@@ -281,8 +281,8 @@ pub fn append_bullet(
     }
 
     if dedupe {
-        for i in content_start..end_idx {
-            if plain_lines[i].trim() == bullet_stripped {
+        for line in plain_lines.iter().take(end_idx).skip(content_start) {
+            if line.trim() == bullet_stripped {
                 return Ok(text);
             }
         }

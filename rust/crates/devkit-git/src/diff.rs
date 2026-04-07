@@ -103,10 +103,7 @@ pub fn summarize_diff(
 
 pub fn summarize_diff_scope(scope: &DiffScope) -> Result<DiffSummary, String> {
     let str_args: Vec<&str> = scope.diff_args.iter().map(|s| s.as_str()).collect();
-    let output = match run_git_command(&str_args) {
-        Ok(out) => out,
-        Err(e) => return Err(e),
-    };
+    let output = run_git_command(&str_args)?;
 
     let mut files_changed = Vec::new();
     let mut total_additions = 0;

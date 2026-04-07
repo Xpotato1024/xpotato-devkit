@@ -111,10 +111,7 @@ pub fn apply_patch(
     verbose: bool,
     reject: bool,
 ) -> PatchDiagnostic {
-    let patch_text = match fs::read_to_string(patch_file) {
-        Ok(t) => t,
-        Err(_) => String::new(),
-    };
+    let patch_text = fs::read_to_string(patch_file).unwrap_or_default();
 
     let (hunks, affected_files) = parse_patch_hunks(&patch_text);
 

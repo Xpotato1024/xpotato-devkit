@@ -33,7 +33,7 @@ pub fn scan_tree(
 
     let mut ov = OverrideBuilder::new(root);
     for ig in extra_ignore {
-        if let Err(_) = ov.add(&format!("!{}", ig)) {}
+        let _ = ov.add(&format!("!{}", ig));
     }
     if let Ok(o) = ov.build() {
         builder.overrides(o);
@@ -68,51 +68,47 @@ pub fn scan_tree(
         0,
     );
 
-    for result in walker {
-        if let Ok(entry) = result {
-            if entry.depth() == 0 {
+    for entry in walker.flatten() {
+        if entry.depth() == 0 {
+            continue;
+        }
+
+        let path = entry.path();
+        let is_dir = path.is_dir();
+        if dirs_only && !is_dir {
+            continue;
+        }
+
+        if !is_dir && let Some(exts) = extensions {
+            let ext = path
+                .extension()
+                .map(|s| s.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+            if !exts.iter().any(|e| e.trim_start_matches('.') == ext) {
                 continue;
             }
+        }
 
-            let path = entry.path();
-            let is_dir = path.is_dir();
-            if dirs_only && !is_dir {
-                continue;
-            }
+        if let Ok(rel_path) = path.strip_prefix(root) {
+            let mut current = &mut root_entry;
+            let components: Vec<_> = rel_path.iter().collect();
+            for (i, c) in components.iter().enumerate() {
+                let name = c.to_string_lossy().to_string();
+                let c_is_dir = if i == components.len() - 1 {
+                    is_dir
+                } else {
+                    true
+                };
+                let size = if c_is_dir {
+                    0
+                } else {
+                    entry.metadata().map(|m| m.len()).unwrap_or(0)
+                };
 
-            if !is_dir {
-                if let Some(exts) = extensions {
-                    let ext = path
-                        .extension()
-                        .map(|s| s.to_string_lossy().to_lowercase())
-                        .unwrap_or_default();
-                    if !exts.iter().any(|e| e.trim_start_matches('.') == ext) {
-                        continue;
-                    }
-                }
-            }
-
-            if let Ok(rel_path) = path.strip_prefix(root) {
-                let mut current = &mut root_entry;
-                let components: Vec<_> = rel_path.iter().collect();
-                for (i, c) in components.iter().enumerate() {
-                    let name = c.to_string_lossy().to_string();
-                    let c_is_dir = if i == components.len() - 1 {
-                        is_dir
-                    } else {
-                        true
-                    };
-                    let size = if c_is_dir {
-                        0
-                    } else {
-                        entry.metadata().map(|m| m.len()).unwrap_or(0)
-                    };
-
-                    current = current
-                        .children
-                        .entry(name.clone())
-                        .or_insert_with(|| TreeEntry::new(name, c_is_dir, size));
-                }
+                current = current
+                    .children
+                    .entry(name.clone())
+                    .or_insert_with(|| TreeEntry::new(name, c_is_dir, size));
             }
         }
     }

@@ -87,14 +87,14 @@ pub fn outline_file(
 }
 
 fn detect_end_strategy(filepath: Option<&Path>) -> fn(&[&str], usize) -> usize {
-    if let Some(path) = filepath {
-        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            match ext.to_lowercase().as_str() {
-                "py" => return find_function_end_python,
-                "rs" | "go" | "c" | "cpp" | "h" | "hpp" | "cc" | "js" | "jsx" | "ts" | "tsx"
-                | "java" | "cs" | "kt" | "swift" => return find_function_end_braces,
-                _ => {}
-            }
+    if let Some(path) = filepath
+        && let Some(ext) = path.extension().and_then(|e| e.to_str())
+    {
+        match ext.to_lowercase().as_str() {
+            "py" => return find_function_end_python,
+            "rs" | "go" | "c" | "cpp" | "h" | "hpp" | "cc" | "js" | "jsx" | "ts" | "tsx"
+            | "java" | "cs" | "kt" | "swift" => return find_function_end_braces,
+            _ => {}
         }
     }
     find_function_end_fallback
@@ -129,8 +129,8 @@ fn find_function_end_python(lines: &[&str], start_idx: usize) -> usize {
 fn find_function_end_braces(lines: &[&str], start_idx: usize) -> usize {
     let mut depth = 0;
     let mut found_open = false;
-    for idx in start_idx..lines.len() {
-        for ch in lines[idx].chars() {
+    for (idx, line) in lines.iter().enumerate().skip(start_idx) {
+        for ch in line.chars() {
             if ch == '{' {
                 depth += 1;
                 found_open = true;
@@ -196,12 +196,12 @@ pub fn find_block_bounds(
         let mut start_idx = None;
         for (i, line) in lines.iter().enumerate() {
             for pattern in FUNCTION_PATTERNS.iter() {
-                if let Some(cap) = pattern.captures(line) {
-                    if let Some(m) = cap.get(1) {
-                        if m.as_str() == f && start_idx.is_none() {
-                            start_idx = Some(i);
-                        }
-                    }
+                if let Some(cap) = pattern.captures(line)
+                    && let Some(m) = cap.get(1)
+                    && m.as_str() == f
+                    && start_idx.is_none()
+                {
+                    start_idx = Some(i);
                 }
             }
             if start_idx.is_some() {
@@ -274,8 +274,8 @@ pub fn extract_context(filepath: &Path, function: &str, margin: usize) -> Result
         ctx_start + 1,
         ctx_end
     ));
-    for i in ctx_start..ctx_end {
-        result_lines.push(format!("{}: {}", i + 1, plain[i]));
+    for (i, line) in plain.iter().enumerate().take(ctx_end).skip(ctx_start) {
+        result_lines.push(format!("{}: {}", i + 1, line));
     }
     result_lines.push("".to_string());
     Ok(result_lines.join("\n"))
