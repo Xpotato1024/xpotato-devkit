@@ -22,41 +22,43 @@
 
 ## インストール方法
 
-本プロジェクトのパッケージおよび環境管理には [uv](https://github.com/astral-sh/uv) を使用しています。
+本プロジェクトは現在 **Rust** によって完全に書き換えられ、高速なネイティブCLIとして動作します。
+インストールには Cargo を使用します。
 
 ```bash
-uv sync
+cargo install --path rust/crates/devkit-cli
 ```
 
-各種コマンドを実行するには `uv run` を使用してください:
+各コマンドは `devkit` として利用可能になります。
 
 ```bash
 # ヘルプと使用可能なコマンド一覧を表示
-uv run devkit --help
+devkit --help
 
 # Pythonファイルのエンコーディングと改行コードをチェック
-uv run devkit encoding check "*.py"
+devkit encoding check "*.py"
 
 # ステージ済み変更だけを要約
-uv run devkit diff summarize --staged
+devkit diff summarize --staged
 
 # 比較範囲を明示してコミット文の下書きを生成
-uv run devkit git commit-message --base origin/main --head HEAD
+devkit git commit-message --base origin/main --head HEAD
 
 # 長い Markdown の見出し一覧を確認
-uv run devkit block extract README.md --list-headings
+devkit block extract README.md --list-headings
 
 # 安全な push。upstream が無い場合は remote を明示
-uv run devkit git safe-push --remote origin --yes
+devkit git safe-push --remote origin --yes
 ```
 
-checkout 中の `devkit` をユーザーツールとして導入したい場合は、次のコマンドを実行してください:
+### レガシー (Python) 版の利用
+
+以前の Python 版は後方互換性のため現在も同梱されています。Python版を利用する場合は [uv](https://github.com/astral-sh/uv) 経由でインストールし `devkit-py` プレフィックスを使用します:
 
 ```bash
-uv run devkit bootstrap install-self
+uv sync
+uv run devkit-py --help
 ```
-
-既存の `scripts/bootstrap_devkit.py` は互換ラッパーとして残してあり、同じ処理を呼び出します。
 
 ## 設定ファイル (`devkit.toml`)
 
