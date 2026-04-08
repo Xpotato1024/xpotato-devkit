@@ -194,12 +194,16 @@ mod tests {
 
         let target = get_metrics_file(&temp.path).unwrap();
         let expected = temp.path.join("logs").join("metrics.jsonl");
-        fs::create_dir_all(target.parent().unwrap()).unwrap();
         assert_eq!(
-            target.parent().unwrap().canonicalize().unwrap(),
-            expected.parent().unwrap().canonicalize().unwrap()
+            target
+                .to_string_lossy()
+                .replace("\\\\?\\", "")
+                .replace('/', "\\"),
+            expected
+                .to_string_lossy()
+                .replace("\\\\?\\", "")
+                .replace('/', "\\")
         );
-        assert_eq!(target.file_name(), expected.file_name());
     }
 
     #[test]
