@@ -206,6 +206,7 @@ mod tests {
 
     #[test]
     fn uses_configured_metrics_path() {
+        let _guard = env_lock().lock().unwrap();
         let temp = TempDir::new();
         fs::write(
             temp.path.join("devkit.toml"),

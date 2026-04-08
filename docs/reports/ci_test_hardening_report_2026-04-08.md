@@ -15,6 +15,7 @@ Hardened the Rust test suite against repeated CI-only flakes instead of applying
 ## Changes
 
 - Serialized tests that mutate `DEVKIT_CONFIG`.
+- Serialized metrics tests that read config-derived paths so they cannot observe another test's temporary `DEVKIT_CONFIG`.
 - Replaced timestamp-only temp directory names with `pid + timestamp + atomic counter` patterns in Rust test helpers across multiple crates.
 - Replaced string-based metrics path assertions with same-location checks based on canonicalized parent directories plus filename comparison.
 
