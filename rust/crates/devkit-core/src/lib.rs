@@ -90,7 +90,13 @@ pub fn load_config(cwd: &Path) -> Result<DevkitConfig, std::io::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     struct TempDir {
         path: PathBuf,
@@ -130,6 +136,7 @@ mod tests {
 
     #[test]
     fn loads_metrics_config_from_parent_root() {
+        let _guard = env_lock().lock().unwrap();
         let temp = TempDir::new();
         let root = temp.path.join("repo");
         let nested = root.join("rust");
@@ -147,6 +154,7 @@ mod tests {
 
     #[test]
     fn load_config_prefers_devkit_config_env_var() {
+        let _guard = env_lock().lock().unwrap();
         let temp = TempDir::new();
         let repo = temp.path.join("repo");
         let custom = temp.path.join("custom");

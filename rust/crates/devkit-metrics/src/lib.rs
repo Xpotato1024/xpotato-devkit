@@ -118,7 +118,13 @@ fn chrono_like_timestamp() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     struct TempDir {
         path: PathBuf,
@@ -198,6 +204,7 @@ mod tests {
 
     #[test]
     fn uses_devkit_config_env_base_directory() {
+        let _guard = env_lock().lock().unwrap();
         let temp = TempDir::new();
         let workspace = temp.path.join("workspace");
         let config_dir = temp.path.join("config-dir");
