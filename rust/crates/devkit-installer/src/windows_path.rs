@@ -66,7 +66,8 @@ pub fn remove_user_path_entry(_entry: &Path) -> Result<(), Box<dyn Error>> {
     Err("PATH updates are only supported on Windows".into())
 }
 
-pub fn split_path_list(value: &str) -> Vec<String> {
+#[cfg(any(test, target_os = "windows"))]
+fn split_path_list(value: &str) -> Vec<String> {
     value
         .split(';')
         .map(str::trim)
@@ -75,7 +76,8 @@ pub fn split_path_list(value: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn normalize_path_fragment(path: impl AsRef<Path>) -> String {
+#[cfg(any(test, target_os = "windows"))]
+fn normalize_path_fragment(path: impl AsRef<Path>) -> String {
     path.as_ref()
         .to_string_lossy()
         .trim_end_matches(['\\', '/'])
