@@ -2,11 +2,13 @@ use clap::Parser;
 use std::error::Error;
 use std::fs;
 use std::io::Write;
+#[cfg(target_os = "windows")]
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::Storage::FileSystem::{MOVEFILE_DELAY_UNTIL_REBOOT, MoveFileExW};
 
 #[derive(Parser, Debug)]
@@ -91,12 +93,23 @@ fn schedule_helper_self_delete(path: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 fn schedule_delete_on_reboot(path: &Path) -> bool {
-    let wide: Vec<u16> = path
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    unsafe { MoveFileExW(wide.as_ptr(), std::ptr::null(), MOVEFILE_DELAY_UNTIL_REBOOT) != 0 }
+    #[cfg(target_os = "windows")]
+    {
+        let wide: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        unsafe {
+            MoveFileExW(wide.as_ptr(), std::ptr::null(), MOVEFILE_DELAY_UNTIL_REBOOT) != 0
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = path;
+        false
+    }
 }
 
 fn write_cleanup_log(message: &str) {
