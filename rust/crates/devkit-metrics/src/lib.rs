@@ -187,14 +187,13 @@ mod tests {
         .unwrap();
 
         let target = get_metrics_file(&temp.path).unwrap();
+        let expected = temp.path.join("logs").join("metrics.jsonl");
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
         assert_eq!(
-            target.to_string_lossy().replace("\\\\?\\", ""),
-            temp.path
-                .join("logs")
-                .join("metrics.jsonl")
-                .to_string_lossy()
-                .replace("\\\\?\\", "")
+            target.parent().unwrap().canonicalize().unwrap(),
+            expected.parent().unwrap().canonicalize().unwrap()
         );
+        assert_eq!(target.file_name(), expected.file_name());
     }
 
     #[test]

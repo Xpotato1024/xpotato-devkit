@@ -221,11 +221,12 @@ fn slugify_heading(text: &str) -> String {
         if ch.is_ascii_alphanumeric() {
             slug.push(ch);
             previous_dash = false;
-        } else if (ch.is_whitespace() || ch == '-' || ch == '_') && !previous_dash {
-            if !slug.is_empty() {
-                slug.push('-');
-                previous_dash = true;
-            }
+        } else if (ch.is_whitespace() || ch == '-' || ch == '_')
+            && !previous_dash
+            && !slug.is_empty()
+        {
+            slug.push('-');
+            previous_dash = true;
         }
     }
 
@@ -459,15 +460,20 @@ pub fn extract_context(filepath: &Path, function: &str, margin: usize) -> Result
     Ok(result_lines.join("\n"))
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BlockOptions<'a> {
+    pub line_range: Option<&'a str>,
+    pub marker: Option<&'a str>,
+    pub heading: Option<&'a str>,
+    pub function: Option<&'a str>,
+    pub heading_exact: bool,
+}
+
 pub fn replace_block(
     filepath: &Path,
     replacement: &str,
-    line_range: Option<&str>,
-    marker: Option<&str>,
-    heading: Option<&str>,
-    function: Option<&str>,
+    options: BlockOptions<'_>,
     dry_run: bool,
-    heading_exact: bool,
 ) -> Result<(String, String), String> {
     let content = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
 
@@ -483,12 +489,12 @@ pub fn replace_block(
 
     let (start, end) = find_block_bounds(
         &raw_lines,
-        line_range,
-        marker,
-        heading,
-        function,
+        options.line_range,
+        options.marker,
+        options.heading,
+        options.function,
         Some(filepath),
-        heading_exact,
+        options.heading_exact,
     )?;
 
     let old_block = raw_lines[start..end].join("");

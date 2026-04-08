@@ -143,6 +143,18 @@ ignore = [".git", "node_modules", "dist", ".venv", "__pycache__"]
 lang = "ja"  # 英語の場合は "en" を指定
 ```
 
+## Rust verification
+
+Rust CLI を変更した PR では、少なくとも次をローカルで通してから push してください。
+
+```bash
+cargo fmt --all
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test -p devkit-block -p devkit-core -p devkit-metrics -p devkit-patch -p devkit-cli
+```
+
+`fmt` だけでは CI の `Lint & Format` を再現できません。`clippy` は warning を含めて必須です。
+
 ## ライセンス
 
 本ソフトウェアは [MIT License](LICENSE) のもとで公開されています。

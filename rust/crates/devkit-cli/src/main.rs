@@ -346,7 +346,7 @@ fn render_patch_diagnostic(
 fn format_encoding_result_line(result: &devkit_encoding::EncodingCheckResult) -> String {
     if result.has_issues() {
         let mut issues = result.issue_labels();
-        if result.error.is_some() && !issues.iter().any(|label| *label == "error") {
+        if result.error.is_some() && !issues.contains(&"error") {
             issues.push("error");
         }
         format!("FAIL\t{}\t{}", result.file, issues.join(", "))
@@ -807,11 +807,11 @@ enabled = false
 path = ".devkit-metrics.jsonl"
 "#;
 
-                if let Some(parent) = target.parent() {
-                    if let Err(error) = std::fs::create_dir_all(parent) {
-                        eprintln!("Error: {}", error);
-                        exit_with_timing(&cli, start, 1);
-                    }
+                if let Some(parent) = target.parent()
+                    && let Err(error) = std::fs::create_dir_all(parent)
+                {
+                    eprintln!("Error: {}", error);
+                    exit_with_timing(&cli, start, 1);
                 }
 
                 if let Err(error) = std::fs::write(&target, template) {
@@ -971,12 +971,14 @@ path = ".devkit-metrics.jsonl"
                 match devkit_block::replace_block(
                     path,
                     &replacement,
-                    lines.as_deref(),
-                    marker.as_deref(),
-                    heading.as_deref(),
-                    effective_function,
+                    devkit_block::BlockOptions {
+                        line_range: lines.as_deref(),
+                        marker: marker.as_deref(),
+                        heading: heading.as_deref(),
+                        function: effective_function,
+                        heading_exact: *heading_exact,
+                    },
                     *dry_run,
-                    *heading_exact,
                 ) {
                     Ok((old, new_b)) => {
                         if *dry_run {
