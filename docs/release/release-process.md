@@ -27,7 +27,7 @@ git push origin "v0.1.0"
 [Actions タブ](https://github.com/Xpotato1024/xpotato-devkit/actions) からビルドジョブの進行状況を確認してください。
 
 ### 4. GitHub Releases ページでの調整
-ジョブが完了すると、[Releases ページ](https://github.com/Xpotato1024/xpotato-devkit/releases) に対象タグのリリースが作成され、バイナリアセットがアタッチされます。
+ジョブが完了すると、[Releases ページ](https://github.com/Xpotato1024/xpotato-devkit/releases) に対象タグのリリースが作成され、バイナリアセットがアタッチされます。Windows のアーカイブには `devkit.exe` に加えて `devkit-installer.exe` も含まれます。
 
 最後に、必要に応じてリリースの「Edit」ボタンを押し、Release notes (Changelog) を追記・生成して公開設定を完了させてください。
 

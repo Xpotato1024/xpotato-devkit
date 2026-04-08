@@ -20,10 +20,12 @@ git push origin v0.1.0
 The release workflow builds the `devkit-cli` package for these targets:
 
 - Linux: `x86_64-unknown-linux-gnu`
-- Windows: `x86_64-pc-windows-msvc`
-- macOS Intel: `x86_64-apple-darwin`
+- Windows: `x86_64-pc-windows-msvc` plus the native `devkit-installer` bundle
+- macOS Apple Silicon: `aarch64-apple-darwin`
 
 The workflow packages the platform binary into an archive before upload.
+On Windows, the archive also includes `devkit-installer.exe` so users can run the native installer after extraction.
+Linux and macOS archives include the `devkit` binary only.
 
 ## Asset Names
 
@@ -37,7 +39,7 @@ Examples:
 
 - `devkit-v0.1.0-x86_64-unknown-linux-gnu.tar.gz`
 - `devkit-v0.1.0-x86_64-pc-windows-msvc.zip`
-- `devkit-v0.1.0-x86_64-apple-darwin.tar.gz`
+- `devkit-v0.1.0-aarch64-apple-darwin.tar.gz`
 
 Archive formats:
 

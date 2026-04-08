@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use std::time::Instant;
 
 /// devkit-rs: repo-agnostic AI-assisted development toolkit
 #[derive(Parser, Debug)]
@@ -332,6 +333,7 @@ pub enum GitCommands {
 
 fn main() {
     let cli = Cli::parse();
+    let start = Instant::now();
 
     match &cli.command {
         Commands::Tree {
@@ -350,7 +352,7 @@ fn main() {
             let root = root.canonicalize().unwrap_or(root);
             if !root.is_dir() {
                 eprintln!("Error: {} is not a directory.", root.display());
-                std::process::exit(1);
+                exit_with_timing(&cli, start, 1);
             }
 
             let extra_ignore = match devkit_core::load_config(&root) {
@@ -395,7 +397,7 @@ fn main() {
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     }
                 }
             }
@@ -409,7 +411,7 @@ fn main() {
                     Ok(ctx) => print!("{}", ctx),
                     Err(e) => {
                         eprintln!("Error: {}", e);
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     }
                 }
             }
@@ -431,7 +433,7 @@ fn main() {
                     Ok(block) => print!("{}", block),
                     Err(e) => {
                         eprintln!("Error: {}", e);
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     }
                 }
             }
@@ -448,7 +450,7 @@ fn main() {
                 let with_path = std::path::Path::new(with_file);
                 let replacement = std::fs::read_to_string(with_path).unwrap_or_else(|e| {
                     eprintln!("Error reading replacement file: {}", e);
-                    std::process::exit(1);
+                    exit_with_timing(&cli, start, 1);
                 });
                 match devkit_block::replace_block(
                     path,
@@ -470,7 +472,7 @@ fn main() {
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     }
                 }
             }
@@ -482,7 +484,7 @@ fn main() {
                 } else if let Some(path) = w {
                     std::fs::read_to_string(path).unwrap_or_else(|e| {
                         eprintln!("Error reading file {}: {}", path, e);
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     })
                 } else {
                     String::new()
@@ -503,7 +505,7 @@ fn main() {
                         Ok(_) => println!("Successfully appended to section '{}'", heading),
                         Err(e) => {
                             eprintln!("Error: {}", e);
-                            std::process::exit(1);
+                            exit_with_timing(&cli, start, 1);
                         }
                     }
                 }
@@ -527,7 +529,7 @@ fn main() {
                         Ok(_) => println!("Successfully replaced section '{}'", heading),
                         Err(e) => {
                             eprintln!("Error: {}", e);
-                            std::process::exit(1);
+                            exit_with_timing(&cli, start, 1);
                         }
                     }
                 }
@@ -553,7 +555,7 @@ fn main() {
                         Ok(_) => println!("Successfully ensured section '{}'", heading),
                         Err(e) => {
                             eprintln!("Error: {}", e);
-                            std::process::exit(1);
+                            exit_with_timing(&cli, start, 1);
                         }
                     }
                 }
@@ -569,7 +571,7 @@ fn main() {
                         Ok(_) => println!("Successfully appended bullet to '{}'", heading),
                         Err(e) => {
                             eprintln!("Error: {}", e);
-                            std::process::exit(1);
+                            exit_with_timing(&cli, start, 1);
                         }
                     }
                 }
@@ -581,10 +583,10 @@ fn main() {
                 let diag = devkit_patch::diagnose_patch(path);
                 if let Err(e) = render_patch_diagnostic(&diag, "diagnose", *json, cli.brief) {
                     eprintln!("Error: {}", e);
-                    std::process::exit(2);
+                    exit_with_timing(&cli, start, 2);
                 }
                 if !diag.success {
-                    std::process::exit(1);
+                    exit_with_timing(&cli, start, 1);
                 }
             }
             PatchCommands::Apply {
@@ -597,10 +599,10 @@ fn main() {
                 let diag = devkit_patch::apply_patch(path, false, *verbose, *reject);
                 if let Err(e) = render_patch_diagnostic(&diag, "apply", *json, cli.brief) {
                     eprintln!("Error: {}", e);
-                    std::process::exit(2);
+                    exit_with_timing(&cli, start, 2);
                 }
                 if !diag.success {
-                    std::process::exit(1);
+                    exit_with_timing(&cli, start, 1);
                 }
             }
         },
@@ -615,7 +617,7 @@ fn main() {
             } => {
                 if *json && cli.brief {
                     eprintln!("Error: `--json` and `--brief` cannot be combined.");
-                    std::process::exit(2);
+                    exit_with_timing(&cli, start, 2);
                 }
                 match devkit_git::diff::summarize_diff(
                     *staged,
@@ -667,7 +669,7 @@ fn main() {
                         } else {
                             eprintln!("Error: {}", e);
                         }
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     }
                 }
             }
@@ -784,7 +786,7 @@ fn main() {
                         }
                         Err(e) => {
                             eprintln!("Error: {}", e);
-                            std::process::exit(1);
+                            exit_with_timing(&cli, start, 1);
                         }
                     }
                 }
@@ -822,7 +824,7 @@ fn main() {
                         }
                         Err(e) => {
                             eprintln!("Error: {}", e);
-                            std::process::exit(1);
+                            exit_with_timing(&cli, start, 1);
                         }
                     }
                 }
@@ -833,7 +835,7 @@ fn main() {
                 } => {
                     if let Err(e) = devkit_git::git::check_safe_branch() {
                         eprintln!("Safety Check Failed: {}", e);
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     }
                     let current = devkit_git::git::get_current_branch().unwrap_or_default();
                     println!("Pushing branch {}...", current);
@@ -853,7 +855,7 @@ fn main() {
                             eprintln!(
                                 "No upstream is configured for this branch. Use --remote to set one."
                             );
-                            std::process::exit(1);
+                            exit_with_timing(&cli, start, 1);
                         }
                     } else {
                         target_remote = devkit_git::git::get_upstream_remote().unwrap_or_default();
@@ -865,14 +867,14 @@ fn main() {
                             "Dry run mode or interactive prompt not implemented in Rust safe-push yet."
                         );
                         println!("Use --yes to confirm.");
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     }
 
                     let status = std::process::Command::new("git").args(&args).status();
                     if let Ok(st) = status {
                         if !st.success() {
                             eprintln!("Push failed.");
-                            std::process::exit(1);
+                            exit_with_timing(&cli, start, 1);
                         } else {
                             let track_msg = if tracking_set { "set" } else { "unchanged" };
                             println!(
@@ -882,10 +884,79 @@ fn main() {
                         }
                     } else {
                         eprintln!("Push failed to execute.");
-                        std::process::exit(1);
+                        exit_with_timing(&cli, start, 1);
                     }
                 }
             }
         }
+    }
+
+    emit_timing(&cli, start);
+}
+
+fn exit_with_timing(cli: &Cli, start: Instant, code: i32) -> ! {
+    emit_timing(cli, start);
+    std::process::exit(code);
+}
+
+fn emit_timing(cli: &Cli, start: Instant) {
+    if !cli.time && !cli.time_json {
+        return;
+    }
+
+    let total_ms = start.elapsed().as_secs_f64() * 1000.0;
+    if let Some(output) = format_timing_output(cli, total_ms) {
+        eprintln!("{}", output);
+    }
+}
+
+fn format_timing_output(cli: &Cli, total_ms: f64) -> Option<String> {
+    if cli.time_json {
+        Some(
+            serde_json::json!({
+                "total_ms": total_ms
+            })
+            .to_string(),
+        )
+    } else if cli.time {
+        Some(format!("[time] {:.3}ms", total_ms))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_cli() -> Cli {
+        Cli {
+            brief: false,
+            time: false,
+            time_json: false,
+            command: Commands::Tree {
+                path: None,
+                max_depth: None,
+                ext: None,
+                dirs_only: false,
+                no_gitignore: false,
+            },
+        }
+    }
+
+    #[test]
+    fn formats_human_timing_output() {
+        let mut cli = test_cli();
+        cli.time = true;
+        let output = format_timing_output(&cli, 12.3456).unwrap();
+        assert_eq!(output, "[time] 12.346ms");
+    }
+
+    #[test]
+    fn formats_json_timing_output() {
+        let mut cli = test_cli();
+        cli.time_json = true;
+        let output = format_timing_output(&cli, 12.5).unwrap();
+        assert_eq!(output, r#"{"total_ms":12.5}"#);
     }
 }
