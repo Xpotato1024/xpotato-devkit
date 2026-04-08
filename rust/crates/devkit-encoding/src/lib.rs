@@ -271,7 +271,13 @@ fn normalize_path(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn next_temp_id() -> u64 {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    }
 
     struct TempDir {
         path: PathBuf,
@@ -283,7 +289,12 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let path = std::env::temp_dir().join(format!("devkit-encoding-test-{}", unique));
+            let path = std::env::temp_dir().join(format!(
+                "devkit-encoding-test-{}-{}-{}",
+                std::process::id(),
+                unique,
+                next_temp_id()
+            ));
             fs::create_dir_all(&path).unwrap();
             Self { path }
         }
@@ -329,10 +340,12 @@ mod tests {
     #[test]
     fn collects_globbed_and_direct_inputs() {
         let temp = TempDir::new();
-        fs::write(temp.path.join("a.txt"), "a\n").unwrap();
-        fs::write(temp.path.join("b.txt"), "b\n").unwrap();
+        let inputs_dir = temp.path.join("inputs");
+        fs::create_dir_all(&inputs_dir).unwrap();
+        fs::write(inputs_dir.join("a.txt"), "a\n").unwrap();
+        fs::write(inputs_dir.join("b.txt"), "b\n").unwrap();
 
-        let inputs = vec!["*.txt".to_string(), "missing.txt".to_string()];
+        let inputs = vec!["inputs/*.txt".to_string(), "missing.txt".to_string()];
         let files = collect_inputs(&temp.path, &inputs).unwrap();
 
         assert_eq!(files.len(), 3);
