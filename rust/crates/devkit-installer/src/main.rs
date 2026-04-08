@@ -152,10 +152,10 @@ fn uninstall(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
         .canonicalize()
         .unwrap_or_else(|_| current_exe.to_path_buf());
 
-    if let Some(path_value) = manifest_path_value(&manifest) {
-        if let Err(err) = remove_user_path_entry(&path_value) {
-            eprintln!("Warning: PATH removal failed: {err}");
-        }
+    if let Some(path_value) = manifest_path_value(&manifest)
+        && let Err(err) = remove_user_path_entry(&path_value)
+    {
+        eprintln!("Warning: PATH removal failed: {err}");
     }
 
     let uninstall_name = current_exe
@@ -248,10 +248,9 @@ fn resolve_manifest_path(cli: &Cli, current_exe: &Path) -> PathBuf {
         .and_then(OsStr::to_str)
         .map(|name| name.eq_ignore_ascii_case("uninstall.exe"))
         .unwrap_or(false)
+        && let Some(parent) = current_exe.parent()
     {
-        if let Some(parent) = current_exe.parent() {
-            return parent.join("install-manifest.json");
-        }
+        return parent.join("install-manifest.json");
     }
 
     default_install_dir().join("install-manifest.json")
@@ -293,15 +292,19 @@ mod tests {
             add_to_path: false,
             install_dir: None,
         };
+        let uninstall_path = std::env::temp_dir()
+            .join("Xpotato")
+            .join("devkit")
+            .join("uninstall.exe");
 
-        let path = resolve_manifest_path(
-            &cli,
-            Path::new(r"C:\Users\Example\AppData\Local\Xpotato\devkit\uninstall.exe"),
-        );
+        let path = resolve_manifest_path(&cli, &uninstall_path);
 
         assert_eq!(
             path,
-            PathBuf::from(r"C:\Users\Example\AppData\Local\Xpotato\devkit\install-manifest.json")
+            uninstall_path
+                .parent()
+                .unwrap()
+                .join("install-manifest.json")
         );
     }
 
