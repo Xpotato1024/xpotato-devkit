@@ -17,7 +17,7 @@ Implemented a tag-triggered release flow for `xpotato-devkit`. Releases now publ
 - Reworked the release workflow so it runs only on tag pushes matching `v*`.
 - Split the workflow into a matrix build job and a single publish job.
 - Packaged assets as `devkit-{tag}-{target}{ext}`.
-- Switched the macOS release target to `x86_64-apple-darwin`.
+- Switched the macOS release target to `aarch64-apple-darwin`.
 - Added a maintainer-facing release guide under `docs/release/`.
 - Added a short release note to `README.md` for user-facing clarity.
 
