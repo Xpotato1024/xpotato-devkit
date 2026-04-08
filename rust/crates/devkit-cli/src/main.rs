@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::time::Instant;
 
 /// devkit-rs: repo-agnostic AI-assisted development toolkit
@@ -47,6 +47,24 @@ pub enum Commands {
         no_gitignore: bool,
     },
 
+    /// Encoding and text sanity checks
+    Encoding {
+        #[command(subcommand)]
+        command: EncodingCommands,
+    },
+
+    /// Install the current checkout as a local user tool
+    Bootstrap {
+        #[command(subcommand)]
+        command: BootstrapCommands,
+    },
+
+    /// Manage devkit project configuration
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
+    },
+
     /// Operations on code blocks
     Block {
         #[command(subcommand)]
@@ -82,6 +100,70 @@ pub enum Commands {
         #[command(subcommand)]
         command: GitCommands,
     },
+
+    /// Manage local devkit metrics
+    Metrics {
+        #[command(subcommand)]
+        command: MetricsCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum EncodingCommands {
+    /// Check files for UTF-8 and newline anomalies
+    Check { files: Vec<String> },
+    /// Normalize BOM and newline style
+    Normalize {
+        files: Vec<String>,
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long, value_enum, default_value_t = CliNewlineStyle::Lf)]
+        newline: CliNewlineStyle,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum BootstrapCommands {
+    /// Install the current checkout via cargo
+    InstallSelf {
+        #[arg(long)]
+        repo_root: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ConfigCommands {
+    /// Write a starter devkit.toml template
+    Init {
+        #[arg(long)]
+        path: Option<String>,
+        #[arg(long)]
+        force: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum MetricsCommands {
+    /// Show aggregated local usage metrics
+    Show {
+        #[arg(long)]
+        path: Option<String>,
+    },
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+pub enum CliNewlineStyle {
+    Lf,
+    Crlf,
+}
+
+impl From<CliNewlineStyle> for devkit_encoding::NewlineStyle {
+    fn from(value: CliNewlineStyle) -> Self {
+        match value {
+            CliNewlineStyle::Lf => Self::Lf,
+            CliNewlineStyle::Crlf => Self::Crlf,
+        }
+    }
 }
 
 #[derive(Subcommand, Debug)]
@@ -111,7 +193,15 @@ pub enum BlockCommands {
         #[arg(long)]
         heading: Option<String>,
         #[arg(long)]
+        heading_exact: bool,
+        #[arg(long)]
         function: Option<String>,
+        #[arg(long)]
+        symbol: Option<String>,
+        #[arg(long)]
+        list_headings: bool,
+        #[arg(long)]
+        list_functions: bool,
     },
     /// Replace an exact block
     Replace {
@@ -125,7 +215,11 @@ pub enum BlockCommands {
         #[arg(long)]
         heading: Option<String>,
         #[arg(long)]
+        heading_exact: bool,
+        #[arg(long)]
         function: Option<String>,
+        #[arg(long)]
+        symbol: Option<String>,
         #[arg(long)]
         dry_run: bool,
     },
@@ -188,12 +282,20 @@ pub enum MdCommands {
 pub enum PatchCommands {
     /// Diagnose patch application
     Diagnose {
-        file: String,
+        #[arg()]
+        file: Option<String>,
+        #[arg(long)]
+        patch_file: Option<String>,
         #[arg(long)]
         json: bool,
     },
     Apply {
-        file: String,
+        #[arg()]
+        file: Option<String>,
+        #[arg(long)]
+        patch_file: Option<String>,
+        #[arg(long)]
+        dry_run: bool,
         #[arg(long)]
         reject: bool,
         #[arg(long)]
@@ -239,6 +341,125 @@ fn render_patch_diagnostic(
     }
 
     Ok(())
+}
+
+fn format_encoding_result_line(result: &devkit_encoding::EncodingCheckResult) -> String {
+    if result.has_issues() {
+        let mut issues = result.issue_labels();
+        if result.error.is_some() && !issues.iter().any(|label| *label == "error") {
+            issues.push("error");
+        }
+        format!("FAIL\t{}\t{}", result.file, issues.join(", "))
+    } else {
+        format!("OK\t{}\tclean", result.file)
+    }
+}
+
+fn format_encoding_brief(results: &[devkit_encoding::EncodingCheckResult]) -> String {
+    let issue_details: Vec<String> = results
+        .iter()
+        .filter(|result| result.has_issues())
+        .map(|result| format!("{}: {}", result.file, result.issue_labels().join(", ")))
+        .collect();
+
+    if issue_details.is_empty() {
+        format!("OK: {} files checked, 0 issues", results.len())
+    } else {
+        let detail = issue_details
+            .iter()
+            .take(5)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("; ");
+        let extra = if issue_details.len() > 5 {
+            format!(" +{} more", issue_details.len() - 5)
+        } else {
+            String::new()
+        };
+        format!(
+            "FAIL: {} files checked, {} issues ({}{})",
+            results.len(),
+            issue_details.len(),
+            detail,
+            extra
+        )
+    }
+}
+
+fn format_normalize_brief(results: &[devkit_encoding::NormalizeResult], dry_run: bool) -> String {
+    let changed = results.iter().filter(|result| result.changed).count();
+    if dry_run {
+        format!(
+            "OK: {} files checked, {} files would change (dry-run)",
+            results.len(),
+            changed
+        )
+    } else {
+        format!(
+            "OK: {} files checked, {} files changed",
+            results.len(),
+            changed
+        )
+    }
+}
+
+fn command_label(command: &Commands) -> &'static str {
+    match command {
+        Commands::Tree { .. } => "tree",
+        Commands::Encoding { command } => match command {
+            EncodingCommands::Check { .. } => "encoding check",
+            EncodingCommands::Normalize { .. } => "encoding normalize",
+        },
+        Commands::Bootstrap { command } => match command {
+            BootstrapCommands::InstallSelf { .. } => "bootstrap install-self",
+        },
+        Commands::Config { command } => match command {
+            ConfigCommands::Init { .. } => "config init",
+        },
+        Commands::Block { command } => match command {
+            BlockCommands::Outline { .. } => "block outline",
+            BlockCommands::Context { .. } => "block context",
+            BlockCommands::Extract { .. } => "block extract",
+            BlockCommands::Replace { .. } => "block replace",
+        },
+        Commands::Md { command } => match command {
+            MdCommands::AppendSection { .. } => "md append-section",
+            MdCommands::ReplaceSection { .. } => "md replace-section",
+            MdCommands::EnsureSection { .. } => "md ensure-section",
+            MdCommands::AppendBullet { .. } => "md append-bullet",
+        },
+        Commands::Patch { command } => match command {
+            PatchCommands::Diagnose { .. } => "patch diagnose",
+            PatchCommands::Apply { .. } => "patch apply",
+        },
+        Commands::Diff { command } => match command {
+            DiffCommands::Summarize { .. } => "diff summarize",
+        },
+        Commands::Doc { command } => match command {
+            DocCommands::ImplNote { .. } => "doc impl-note",
+            DocCommands::BenchmarkNote { .. } => "doc benchmark-note",
+        },
+        Commands::Git { command } => match command {
+            GitCommands::CommitMessage { .. } => "git commit-message",
+            GitCommands::PrBody { .. } => "git pr-body",
+            GitCommands::SafePush { .. } => "git safe-push",
+        },
+        Commands::Metrics { command } => match command {
+            MetricsCommands::Show { .. } => "metrics show",
+        },
+    }
+}
+
+fn record_metrics(cli: &Cli, start: Instant, ok: bool) {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    devkit_metrics::record_metric(
+        &cwd,
+        command_label(&cli.command),
+        duration_ms,
+        cli.brief,
+        ok,
+    );
 }
 
 #[derive(Subcommand, Debug)]
@@ -382,6 +603,225 @@ fn main() {
             }
             println!("{}", devkit_tree::tree_summary(&entry));
         }
+        Commands::Encoding { command } => match command {
+            EncodingCommands::Check { files } => {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let config = match devkit_core::load_config(&cwd) {
+                    Ok(config) => config,
+                    Err(error) => {
+                        if cli.brief {
+                            println!("FAIL: {}", error);
+                        } else {
+                            eprintln!("Error: {}", error);
+                        }
+                        exit_with_timing(&cli, start, 1);
+                    }
+                };
+                let ignore_patterns =
+                    devkit_encoding::resolve_ignore_patterns(&config.encoding.ignore);
+
+                let inputs = match devkit_encoding::collect_inputs(&cwd, files) {
+                    Ok(inputs) => inputs,
+                    Err(error) => {
+                        if cli.brief {
+                            println!("FAIL: {}", error);
+                        } else {
+                            eprintln!("Error: {}", error);
+                        }
+                        exit_with_timing(&cli, start, 1);
+                    }
+                };
+
+                let results: Vec<_> = inputs
+                    .into_iter()
+                    .filter(|path| path.is_file())
+                    .filter(|path| !devkit_encoding::should_ignore(path, &ignore_patterns))
+                    .map(|path| {
+                        let display_path = devkit_encoding::display_path(&cwd, &path);
+                        devkit_encoding::check_encoding(&path, display_path)
+                    })
+                    .collect();
+
+                if results.is_empty() {
+                    if cli.brief {
+                        println!("FAIL: no valid files found");
+                    } else {
+                        eprintln!("Error: No valid files found to process.");
+                    }
+                    exit_with_timing(&cli, start, 1);
+                }
+
+                if cli.brief {
+                    println!("{}", format_encoding_brief(&results));
+                } else {
+                    for result in &results {
+                        println!("{}", format_encoding_result_line(result));
+                    }
+                    let issue_count = results.iter().filter(|result| result.has_issues()).count();
+                    println!(
+                        "Summary\t{} files checked\t{} issues",
+                        results.len(),
+                        issue_count
+                    );
+                }
+
+                if results.iter().any(|result| result.has_issues()) {
+                    exit_with_timing(&cli, start, 1);
+                }
+            }
+            EncodingCommands::Normalize {
+                files,
+                dry_run,
+                newline,
+            } => {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let config = match devkit_core::load_config(&cwd) {
+                    Ok(config) => config,
+                    Err(error) => {
+                        if cli.brief {
+                            println!("FAIL: {}", error);
+                        } else {
+                            eprintln!("Error: {}", error);
+                        }
+                        exit_with_timing(&cli, start, 1);
+                    }
+                };
+                let ignore_patterns =
+                    devkit_encoding::resolve_ignore_patterns(&config.encoding.ignore);
+                let inputs = match devkit_encoding::collect_inputs(&cwd, files) {
+                    Ok(inputs) => inputs,
+                    Err(error) => {
+                        if cli.brief {
+                            println!("FAIL: {}", error);
+                        } else {
+                            eprintln!("Error: {}", error);
+                        }
+                        exit_with_timing(&cli, start, 1);
+                    }
+                };
+
+                let mut results = Vec::new();
+                for path in inputs
+                    .into_iter()
+                    .filter(|path| path.is_file())
+                    .filter(|path| !devkit_encoding::should_ignore(path, &ignore_patterns))
+                {
+                    let display_path = devkit_encoding::display_path(&cwd, &path);
+                    match devkit_encoding::normalize_encoding(
+                        &path,
+                        display_path,
+                        (*newline).into(),
+                        *dry_run,
+                    ) {
+                        Ok(result) => results.push(result),
+                        Err(error) => {
+                            if cli.brief {
+                                println!("FAIL: {}", error);
+                            } else {
+                                eprintln!("Error: {}", error);
+                            }
+                            exit_with_timing(&cli, start, 1);
+                        }
+                    }
+                }
+
+                if results.is_empty() {
+                    if cli.brief {
+                        println!("FAIL: no valid files found");
+                    } else {
+                        eprintln!("Error: No valid files found to process.");
+                    }
+                    exit_with_timing(&cli, start, 1);
+                }
+
+                if cli.brief {
+                    println!("{}", format_normalize_brief(&results, *dry_run));
+                } else {
+                    for result in &results {
+                        let status = if result.changed {
+                            if *dry_run { "WOULD_CHANGE" } else { "CHANGED" }
+                        } else {
+                            "UNCHANGED"
+                        };
+                        println!("{}\t{}", status, result.file);
+                    }
+                }
+            }
+        },
+        Commands::Bootstrap { command } => match command {
+            BootstrapCommands::InstallSelf { repo_root } => {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let resolved_root = if let Some(path) = repo_root {
+                    std::path::PathBuf::from(path)
+                } else {
+                    match devkit_bootstrap::find_repo_root(&cwd) {
+                        Ok(path) => path,
+                        Err(error) => {
+                            eprintln!("Error: {}", error);
+                            exit_with_timing(&cli, start, 1);
+                        }
+                    }
+                };
+
+                match devkit_bootstrap::bootstrap_self(&resolved_root) {
+                    Ok(tool_bin) => {
+                        println!(
+                            "Bootstrap complete. If the current shell does not see devkit yet, restart it or add {} to PATH.",
+                            tool_bin.display()
+                        );
+                    }
+                    Err(error) => {
+                        eprintln!("Error: {}", error);
+                        exit_with_timing(&cli, start, 1);
+                    }
+                }
+            }
+        },
+        Commands::Config { command } => match command {
+            ConfigCommands::Init { path, force } => {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let target = path
+                    .as_ref()
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| cwd.join("devkit.toml"));
+
+                if target.exists() && !force {
+                    eprintln!(
+                        "Error: {} already exists. Use --force to overwrite.",
+                        target.display()
+                    );
+                    exit_with_timing(&cli, start, 1);
+                }
+
+                let template = r#"[encoding]
+# Ignore files and directories during encoding/tree operations.
+ignore = [".git", ".venv", "venv", "node_modules", "__pycache__", ".ruff_cache", "dist", "build"]
+
+[git]
+# Prompt language for generated commit / PR text.
+lang = "ja"
+
+[metrics]
+# Enable local JSONL metrics collection when desired.
+enabled = false
+path = ".devkit-metrics.jsonl"
+"#;
+
+                if let Some(parent) = target.parent() {
+                    if let Err(error) = std::fs::create_dir_all(parent) {
+                        eprintln!("Error: {}", error);
+                        exit_with_timing(&cli, start, 1);
+                    }
+                }
+
+                if let Err(error) = std::fs::write(&target, template) {
+                    eprintln!("Error: {}", error);
+                    exit_with_timing(&cli, start, 1);
+                }
+
+                println!("Wrote {}", target.display());
+            }
+        },
         Commands::Block { command } => match command {
             BlockCommands::Outline {
                 file,
@@ -421,14 +861,83 @@ fn main() {
                 marker,
                 heading,
                 function,
+                symbol,
+                list_headings,
+                list_functions,
+                heading_exact,
             } => {
                 let path = std::path::Path::new(file);
+                if symbol.is_some() && function.is_some() {
+                    eprintln!("Error: Use either --function or --symbol, not both.");
+                    exit_with_timing(&cli, start, 1);
+                }
+                if *list_headings && *list_functions {
+                    eprintln!("Error: Use either --list-headings or --list-functions, not both.");
+                    exit_with_timing(&cli, start, 1);
+                }
+                if (*list_headings || *list_functions)
+                    && (lines.is_some()
+                        || marker.is_some()
+                        || heading.is_some()
+                        || function.is_some()
+                        || symbol.is_some())
+                {
+                    eprintln!("Error: Listing options cannot be combined with extract selectors.");
+                    exit_with_timing(&cli, start, 1);
+                }
+
+                if *list_headings {
+                    match devkit_block::list_markdown_headings(path) {
+                        Ok(entries) => {
+                            if entries.is_empty() {
+                                println!("No entries found.");
+                            } else {
+                                for entry in entries {
+                                    println!(
+                                        "L{}: {} {}  [{}]",
+                                        entry.line,
+                                        "#".repeat(entry.level),
+                                        entry.text,
+                                        entry.slug
+                                    );
+                                }
+                            }
+                        }
+                        Err(error) => {
+                            eprintln!("Error: {}", error);
+                            exit_with_timing(&cli, start, 1);
+                        }
+                    }
+                    continue_or_return_after_branch(&cli, start);
+                }
+
+                if *list_functions {
+                    match devkit_block::list_functions(path) {
+                        Ok(entries) => {
+                            if entries.is_empty() {
+                                println!("No entries found.");
+                            } else {
+                                for entry in entries {
+                                    println!("L{}: {}", entry.line, entry.name);
+                                }
+                            }
+                        }
+                        Err(error) => {
+                            eprintln!("Error: {}", error);
+                            exit_with_timing(&cli, start, 1);
+                        }
+                    }
+                    continue_or_return_after_branch(&cli, start);
+                }
+
+                let effective_function = symbol.as_deref().or(function.as_deref());
                 match devkit_block::extract_block(
                     path,
                     lines.as_deref(),
                     marker.as_deref(),
                     heading.as_deref(),
-                    function.as_deref(),
+                    effective_function,
+                    *heading_exact,
                 ) {
                     Ok(block) => print!("{}", block),
                     Err(e) => {
@@ -444,22 +953,30 @@ fn main() {
                 marker,
                 heading,
                 function,
+                symbol,
                 dry_run,
+                heading_exact,
             } => {
                 let path = std::path::Path::new(file);
                 let with_path = std::path::Path::new(with_file);
+                if symbol.is_some() && function.is_some() {
+                    eprintln!("Error: Use either --function or --symbol, not both.");
+                    exit_with_timing(&cli, start, 1);
+                }
                 let replacement = std::fs::read_to_string(with_path).unwrap_or_else(|e| {
                     eprintln!("Error reading replacement file: {}", e);
                     exit_with_timing(&cli, start, 1);
                 });
+                let effective_function = symbol.as_deref().or(function.as_deref());
                 match devkit_block::replace_block(
                     path,
                     &replacement,
                     lines.as_deref(),
                     marker.as_deref(),
                     heading.as_deref(),
-                    function.as_deref(),
+                    effective_function,
                     *dry_run,
+                    *heading_exact,
                 ) {
                     Ok((old, new_b)) => {
                         if *dry_run {
@@ -578,8 +1095,17 @@ fn main() {
             }
         }
         Commands::Patch { command } => match command {
-            PatchCommands::Diagnose { file, json } => {
-                let path = std::path::Path::new(file);
+            PatchCommands::Diagnose {
+                file,
+                patch_file,
+                json,
+            } => {
+                let selected = patch_file.as_ref().or(file.as_ref());
+                let Some(selected) = selected else {
+                    eprintln!("Error: Provide a patch file via positional path or --patch-file.");
+                    exit_with_timing(&cli, start, 2);
+                };
+                let path = std::path::Path::new(selected);
                 let diag = devkit_patch::diagnose_patch(path);
                 if let Err(e) = render_patch_diagnostic(&diag, "diagnose", *json, cli.brief) {
                     eprintln!("Error: {}", e);
@@ -591,12 +1117,19 @@ fn main() {
             }
             PatchCommands::Apply {
                 file,
+                patch_file,
+                dry_run,
                 reject,
                 verbose,
                 json,
             } => {
-                let path = std::path::Path::new(file);
-                let diag = devkit_patch::apply_patch(path, false, *verbose, *reject);
+                let selected = patch_file.as_ref().or(file.as_ref());
+                let Some(selected) = selected else {
+                    eprintln!("Error: Provide a patch file via positional path or --patch-file.");
+                    exit_with_timing(&cli, start, 2);
+                };
+                let path = std::path::Path::new(selected);
+                let diag = devkit_patch::apply_patch(path, *dry_run, *verbose, *reject);
                 if let Err(e) = render_patch_diagnostic(&diag, "apply", *json, cli.brief) {
                     eprintln!("Error: {}", e);
                     exit_with_timing(&cli, start, 2);
@@ -889,13 +1422,58 @@ fn main() {
                 }
             }
         }
+        Commands::Metrics { command } => match command {
+            MetricsCommands::Show { path } => {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let target = path
+                    .as_ref()
+                    .map(std::path::PathBuf::from)
+                    .or_else(|| devkit_metrics::get_metrics_file(&cwd));
+
+                let Some(target) = target else {
+                    println!("Metrics are not enabled in devkit.toml or no path configured.");
+                    emit_timing(&cli, start);
+                    record_metrics(&cli, start, true);
+                    return;
+                };
+
+                if !target.is_file() {
+                    println!("Metrics file {} does not exist yet.", target.display());
+                    emit_timing(&cli, start);
+                    record_metrics(&cli, start, true);
+                    return;
+                }
+
+                let records = devkit_metrics::load_metrics(&target);
+                if records.is_empty() {
+                    println!("No valid records found in {}.", target.display());
+                    emit_timing(&cli, start);
+                    record_metrics(&cli, start, true);
+                    return;
+                }
+
+                let summary = devkit_metrics::summarize_metrics(&records);
+                println!("Devkit Usage Metrics (Total: {} runs)", records.len());
+                println!("Command\tCount\tAvg Time (ms)\tBrief %\tSuccess %");
+                for (cmd, st) in summary.iter().rev() {
+                    let brief_pct = (st.brief_count as f64 / st.count as f64) * 100.0;
+                    let success_pct = st.success_rate * 100.0;
+                    println!(
+                        "{}\t{}\t{:.1}\t{:.1}%\t{:.1}%",
+                        cmd, st.count, st.avg_ms, brief_pct, success_pct
+                    );
+                }
+            }
+        },
     }
 
     emit_timing(&cli, start);
+    record_metrics(&cli, start, true);
 }
 
 fn exit_with_timing(cli: &Cli, start: Instant, code: i32) -> ! {
     emit_timing(cli, start);
+    record_metrics(cli, start, code == 0);
     std::process::exit(code);
 }
 
@@ -925,9 +1503,16 @@ fn format_timing_output(cli: &Cli, total_ms: f64) -> Option<String> {
     }
 }
 
+fn continue_or_return_after_branch(cli: &Cli, start: Instant) -> ! {
+    emit_timing(cli, start);
+    record_metrics(cli, start, true);
+    std::process::exit(0);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use devkit_encoding::EncodingCheckResult;
 
     fn test_cli() -> Cli {
         Cli {
@@ -958,5 +1543,41 @@ mod tests {
         cli.time_json = true;
         let output = format_timing_output(&cli, 12.5).unwrap();
         assert_eq!(output, r#"{"total_ms":12.5}"#);
+    }
+
+    #[test]
+    fn encoding_brief_ok_is_single_line() {
+        let results = vec![EncodingCheckResult {
+            file: "README.md".to_string(),
+            valid_utf8: true,
+            has_bom: false,
+            has_replacement_char: false,
+            has_control_chars: false,
+            mixed_newlines: false,
+            error: None,
+        }];
+
+        assert_eq!(
+            format_encoding_brief(&results),
+            "OK: 1 files checked, 0 issues"
+        );
+    }
+
+    #[test]
+    fn encoding_brief_fail_lists_first_issue() {
+        let results = vec![EncodingCheckResult {
+            file: "bad.txt".to_string(),
+            valid_utf8: true,
+            has_bom: true,
+            has_replacement_char: false,
+            has_control_chars: false,
+            mixed_newlines: false,
+            error: None,
+        }];
+
+        assert_eq!(
+            format_encoding_brief(&results),
+            "FAIL: 1 files checked, 1 issues (bad.txt: BOM)"
+        );
     }
 }

@@ -207,14 +207,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "devkit-bootstrap"
+version = "0.1.0"
+
+[[package]]
 name = "devkit-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
  "devkit-block",
+ "devkit-bootstrap",
  "devkit-core",
+ "devkit-encoding",
  "devkit-git",
  "devkit-md",
+ "devkit-metrics",
  "devkit-patch",
  "devkit-tree",
  "serde_json",
@@ -227,6 +234,13 @@ dependencies = [
  "serde",
  "serde_derive",
  "toml",
+]
+
+[[package]]
+name = "devkit-encoding"
+version = "0.1.0"
+dependencies = [
+ "glob",
 ]
 
 [[package]]
@@ -258,6 +272,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "devkit-metrics"
+version = "0.1.0"
+dependencies = [
+ "devkit-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "devkit-patch"
 version = "0.1.0"
 dependencies = [
@@ -285,6 +308,12 @@ name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
+
+[[package]]
+name = "glob"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "globset"
