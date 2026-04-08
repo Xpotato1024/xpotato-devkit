@@ -118,12 +118,28 @@ fn chrono_like_timestamp() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn env_lock() -> &'static Mutex<()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    fn next_temp_id() -> u64 {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    }
+
+    fn assert_same_file_path(left: &Path, right: &Path) {
+        fs::create_dir_all(left.parent().unwrap()).unwrap();
+        fs::create_dir_all(right.parent().unwrap()).unwrap();
+        assert_eq!(
+            left.parent().unwrap().canonicalize().unwrap(),
+            right.parent().unwrap().canonicalize().unwrap()
+        );
+        assert_eq!(left.file_name(), right.file_name());
     }
 
     struct TempDir {
@@ -136,7 +152,12 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let path = std::env::temp_dir().join(format!("devkit-metrics-test-{}", unique));
+            let path = std::env::temp_dir().join(format!(
+                "devkit-metrics-test-{}-{}-{}",
+                std::process::id(),
+                unique,
+                next_temp_id()
+            ));
             fs::create_dir_all(&path).unwrap();
             Self { path }
         }
@@ -194,16 +215,7 @@ mod tests {
 
         let target = get_metrics_file(&temp.path).unwrap();
         let expected = temp.path.join("logs").join("metrics.jsonl");
-        assert_eq!(
-            target
-                .to_string_lossy()
-                .replace("\\\\?\\", "")
-                .replace('/', "\\"),
-            expected
-                .to_string_lossy()
-                .replace("\\\\?\\", "")
-                .replace('/', "\\")
-        );
+        assert_same_file_path(&target, &expected);
     }
 
     #[test]
@@ -225,17 +237,6 @@ mod tests {
         let target = get_metrics_file(&workspace).unwrap();
         unsafe { std::env::remove_var("DEVKIT_CONFIG") };
 
-        assert_eq!(
-            target
-                .to_string_lossy()
-                .replace("\\\\?\\", "")
-                .replace('/', "\\"),
-            config_dir
-                .join("logs")
-                .join("metrics.jsonl")
-                .to_string_lossy()
-                .replace("\\\\?\\", "")
-                .replace('/', "\\")
-        );
+        assert_same_file_path(&target, &config_dir.join("logs").join("metrics.jsonl"));
     }
 }

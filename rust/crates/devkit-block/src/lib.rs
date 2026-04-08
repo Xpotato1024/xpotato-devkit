@@ -529,7 +529,13 @@ pub fn diff_preview(old_block: &str, new_block: &str, filepath: &Path) -> String
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn next_temp_id() -> u64 {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    }
 
     struct TempDir {
         path: std::path::PathBuf,
@@ -541,7 +547,12 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let path = std::env::temp_dir().join(format!("devkit-block-test-{}", unique));
+            let path = std::env::temp_dir().join(format!(
+                "devkit-block-test-{}-{}-{}",
+                std::process::id(),
+                unique,
+                next_temp_id()
+            ));
             fs::create_dir_all(&path).unwrap();
             Self { path }
         }

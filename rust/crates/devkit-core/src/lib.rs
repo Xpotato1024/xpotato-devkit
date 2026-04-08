@@ -90,12 +90,18 @@ pub fn load_config(cwd: &Path) -> Result<DevkitConfig, std::io::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::{Mutex, OnceLock};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn env_lock() -> &'static Mutex<()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    fn next_temp_id() -> u64 {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        COUNTER.fetch_add(1, Ordering::Relaxed)
     }
 
     struct TempDir {
@@ -108,7 +114,12 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let path = std::env::temp_dir().join(format!("devkit-core-test-{}", unique));
+            let path = std::env::temp_dir().join(format!(
+                "devkit-core-test-{}-{}-{}",
+                std::process::id(),
+                unique,
+                next_temp_id()
+            ));
             fs::create_dir_all(&path).unwrap();
             Self { path }
         }

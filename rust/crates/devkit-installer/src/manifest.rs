@@ -67,14 +67,24 @@ pub fn manifest_path_value(manifest: &InstallManifest) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn next_temp_id() -> u64 {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    }
 
     fn test_dir(name: &str) -> PathBuf {
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path = std::env::temp_dir().join(format!("devkit-installer-{name}-{unique}"));
+        let path = std::env::temp_dir().join(format!(
+            "devkit-installer-{name}-{}-{unique}-{}",
+            std::process::id(),
+            next_temp_id()
+        ));
         fs::create_dir_all(&path).unwrap();
         path
     }
