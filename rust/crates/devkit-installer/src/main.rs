@@ -1,5 +1,6 @@
 mod manifest;
 mod windows_path;
+include!(concat!(env!("OUT_DIR"), "/embedded_payload.rs"));
 
 use clap::Parser;
 use manifest::{
@@ -27,7 +28,7 @@ struct Cli {
     #[arg(long)]
     unpack_only: bool,
 
-    /// Add the install directory to the user PATH
+    /// Retained for compatibility; PATH addition is the default unless --unpack-only is used
     #[arg(long)]
     add_to_path: bool,
 
@@ -40,6 +41,7 @@ struct Cli {
 struct InstallPaths {
     install_dir: PathBuf,
     devkit_exe: PathBuf,
+    cleanup_helper_exe: PathBuf,
     uninstall_exe: PathBuf,
     manifest_path: PathBuf,
 }
@@ -87,31 +89,38 @@ fn resolve_mode(cli: &Cli, current_exe: &Path) -> Mode {
 }
 
 fn install(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
-    let package_dir = current_exe
-        .parent()
-        .ok_or("could not resolve the installer package directory")?;
-    let payload_exe = package_dir.join("devkit.exe");
-
-    if !payload_exe.is_file() {
-        return Err("missing bundled payload: devkit.exe".into());
-    }
-
     let paths = install_paths(cli.install_dir.clone().unwrap_or_else(default_install_dir));
     fs::create_dir_all(&paths.install_dir)?;
 
-    copy_file(&payload_exe, &paths.devkit_exe)?;
+    let payload_source = install_payload(current_exe, &paths.devkit_exe)?;
     copy_file(current_exe, &paths.uninstall_exe)?;
+    let cleanup_helper_installed =
+        install_cleanup_helper_sidecar(current_exe, &paths.cleanup_helper_exe)?;
 
-    let mut path_added = false;
-    if cli.add_to_path && !cli.unpack_only {
+    if cli.add_to_path && cli.unpack_only {
+        eprintln!("Warning: --add-to-path is ignored when --unpack-only is set.");
+    }
+
+    let path_status = if should_add_to_path(cli) {
         match add_user_path_entry(&paths.install_dir) {
-            Ok(added) => {
-                path_added = added;
-            }
+            Ok(true) => PathStatus::Added,
+            Ok(false) => PathStatus::AlreadyPresent,
             Err(err) => {
                 eprintln!("Warning: PATH update failed: {err}");
+                PathStatus::Failed
             }
         }
+    } else {
+        PathStatus::Skipped
+    };
+
+    let mut installed_files = vec![
+        "devkit.exe".to_string(),
+        "uninstall.exe".to_string(),
+        "install-manifest.json".to_string(),
+    ];
+    if cleanup_helper_installed {
+        installed_files.push("devkit-cleanup-helper.exe".to_string());
     }
 
     let manifest = InstallManifest {
@@ -119,13 +128,9 @@ fn install(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
         version: env!("CARGO_PKG_VERSION").to_string(),
         install_dir: paths.install_dir.to_string_lossy().to_string(),
         installed_at: chrono::Utc::now().to_rfc3339(),
-        installed_files: vec![
-            "devkit.exe".to_string(),
-            "uninstall.exe".to_string(),
-            "install-manifest.json".to_string(),
-        ],
-        path_added,
-        path_value: if path_added {
+        installed_files,
+        path_added: path_status == PathStatus::Added,
+        path_value: if path_status == PathStatus::Added {
             Some(paths.install_dir.to_string_lossy().to_string())
         } else {
             None
@@ -138,7 +143,20 @@ fn install(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
     println!("Installed devkit to {}", paths.install_dir.display());
     println!("Binary: {}", paths.devkit_exe.display());
     println!("Uninstall: {}", paths.uninstall_exe.display());
-    println!("PATH added: {}", if path_added { "Yes" } else { "No" });
+    println!("Payload source: {}", payload_source.label());
+    println!("PATH status: {}", path_status.label());
+
+    if should_add_to_path(cli) {
+        println!("Open a new shell to use the updated PATH.");
+    }
+
+    if let Some(message) = install_resolution_message(cli, &paths.devkit_exe) {
+        println!("Resolution: {message}");
+    }
+
+    for message in install_warnings(cli, &paths.devkit_exe) {
+        println!("Warning: {message}");
+    }
 
     Ok(())
 }
@@ -190,10 +208,71 @@ fn uninstall(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
 fn install_paths(install_dir: PathBuf) -> InstallPaths {
     InstallPaths {
         devkit_exe: install_dir.join("devkit.exe"),
+        cleanup_helper_exe: install_dir.join("devkit-cleanup-helper.exe"),
         uninstall_exe: install_dir.join("uninstall.exe"),
         manifest_path: install_dir.join("install-manifest.json"),
         install_dir,
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PathStatus {
+    Added,
+    AlreadyPresent,
+    Skipped,
+    Failed,
+}
+
+impl PathStatus {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Added => "Added",
+            Self::AlreadyPresent => "Already present",
+            Self::Skipped => "Skipped (--unpack-only)",
+            Self::Failed => "Failed",
+        }
+    }
+}
+
+fn should_add_to_path(cli: &Cli) -> bool {
+    !cli.unpack_only
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PayloadSource {
+    Embedded,
+    Sidecar,
+}
+
+impl PayloadSource {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Embedded => "Embedded",
+            Self::Sidecar => "Sidecar devkit.exe",
+        }
+    }
+}
+
+fn install_payload(
+    current_exe: &Path,
+    destination: &Path,
+) -> Result<PayloadSource, Box<dyn Error>> {
+    if let Some(payload) = EMBEDDED_PAYLOAD {
+        write_file(destination, payload)?;
+        return Ok(PayloadSource::Embedded);
+    }
+
+    let package_dir = current_exe
+        .parent()
+        .ok_or("could not resolve the installer package directory")?;
+    let payload_exe = package_dir.join("devkit.exe");
+
+    if !payload_exe.is_file() {
+        return Err("missing embedded payload and sidecar devkit.exe".into());
+    }
+
+    copy_file(&payload_exe, destination)?;
+    Ok(PayloadSource::Sidecar)
 }
 
 fn default_install_dir() -> PathBuf {
@@ -212,14 +291,71 @@ fn copy_file(source: &Path, destination: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn schedule_self_delete(path: &Path) -> Result<(), Box<dyn Error>> {
-    let command = format!(
-        "ping 127.0.0.1 -n 2 > NUL & del /F /Q \"{file}\" & rmdir \"{dir}\" 2>NUL",
-        file = path.display(),
-        dir = path.parent().unwrap_or_else(|| Path::new(".")).display()
-    );
-    Command::new("cmd").args(["/C", &command]).spawn()?;
+fn write_file(destination: &Path, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    fs::write(destination, bytes)?;
     Ok(())
+}
+
+fn schedule_self_delete(path: &Path) -> Result<(), Box<dyn Error>> {
+    let helper_path = std::env::temp_dir().join(format!(
+        "devkit-uninstall-cleanup-{}-{}.exe",
+        std::process::id(),
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+    ));
+    install_cleanup_helper(&helper_path)?;
+    Command::new(&helper_path)
+        .arg("--target")
+        .arg(path)
+        .arg("--dir")
+        .arg(path.parent().unwrap_or_else(|| Path::new(".")))
+        .arg("--self-path")
+        .arg(&helper_path)
+        .spawn()?;
+    Ok(())
+}
+
+fn install_cleanup_helper(destination: &Path) -> Result<(), Box<dyn Error>> {
+    if let Some(helper) = EMBEDDED_CLEANUP_HELPER {
+        write_file(destination, helper)?;
+        return Ok(());
+    }
+
+    let current_exe = std::env::current_exe()?;
+    let package_dir = current_exe
+        .parent()
+        .ok_or("could not resolve the cleanup helper package directory")?;
+    let helper_exe = package_dir.join("devkit-cleanup-helper.exe");
+
+    if !helper_exe.is_file() {
+        return Err("missing embedded cleanup helper and sidecar devkit-cleanup-helper.exe".into());
+    }
+
+    copy_file(&helper_exe, destination)?;
+    Ok(())
+}
+
+fn install_cleanup_helper_sidecar(
+    current_exe: &Path,
+    destination: &Path,
+) -> Result<bool, Box<dyn Error>> {
+    if EMBEDDED_CLEANUP_HELPER.is_some() {
+        return Ok(false);
+    }
+
+    let package_dir = current_exe
+        .parent()
+        .ok_or("could not resolve the cleanup helper package directory")?;
+    let helper_exe = package_dir.join("devkit-cleanup-helper.exe");
+    if !helper_exe.is_file() {
+        return Err("missing sidecar devkit-cleanup-helper.exe".into());
+    }
+
+    copy_file(&helper_exe, destination)?;
+    Ok(true)
 }
 
 fn same_path(left: &Path, right: &Path) -> bool {
@@ -236,6 +372,95 @@ fn same_path(left: &Path, right: &Path) -> bool {
         .replace('/', "\\")
         .to_ascii_lowercase();
     left == right
+}
+
+fn find_all_commands_on_path(command_name: &str, path_value: &OsStr) -> Vec<PathBuf> {
+    std::env::split_paths(path_value)
+        .map(|dir| dir.join(command_name))
+        .filter(|candidate| candidate.is_file())
+        .collect()
+}
+
+fn install_resolution_message(cli: &Cli, installed_path: &Path) -> Option<String> {
+    if !should_add_to_path(cli) {
+        return Some(
+            "PATH update skipped; use the installed binary directly or add it manually".to_string(),
+        );
+    }
+
+    let hits = std::env::var_os("PATH")
+        .map(|value| find_all_commands_on_path("devkit.exe", &value))
+        .unwrap_or_default();
+
+    if hits.is_empty() {
+        return Some(format!(
+            "new shells should resolve {}",
+            installed_path.display()
+        ));
+    }
+
+    let first = &hits[0];
+    if same_path(first, installed_path) {
+        Some(format!(
+            "current shell already resolves {}",
+            first.display()
+        ))
+    } else {
+        Some(format!(
+            "current shell resolves {}; new shells should resolve {}",
+            first.display(),
+            installed_path.display()
+        ))
+    }
+}
+
+fn install_warnings(cli: &Cli, installed_path: &Path) -> Vec<String> {
+    let mut warnings = Vec::new();
+
+    if !should_add_to_path(cli) {
+        return warnings;
+    }
+
+    let Some(path_value) = std::env::var_os("PATH") else {
+        return warnings;
+    };
+    let hits = find_all_commands_on_path("devkit.exe", &path_value);
+    if hits.is_empty() {
+        return warnings;
+    }
+
+    let installed_on_current_path = hits
+        .iter()
+        .any(|candidate| same_path(candidate, installed_path));
+    let first_other = hits
+        .iter()
+        .find(|candidate| !same_path(candidate, installed_path))
+        .cloned();
+
+    if let Some(existing) = first_other {
+        if installed_on_current_path {
+            if !same_path(&hits[0], installed_path) {
+                warnings.push(format!(
+                    "another devkit.exe is ahead of the installed binary on PATH: {}",
+                    existing.display()
+                ));
+                warnings.push(
+                    "a new shell may continue to resolve that binary until PATH order is changed"
+                        .to_string(),
+                );
+            }
+        } else {
+            warnings.push(format!(
+                "the current shell still resolves another devkit.exe from PATH: {}",
+                existing.display()
+            ));
+            warnings.push(
+                "open a new shell, then verify the resolved binary with `where devkit`".to_string(),
+            );
+        }
+    }
+
+    warnings
 }
 
 fn resolve_manifest_path(cli: &Cli, current_exe: &Path) -> PathBuf {
@@ -316,6 +541,145 @@ mod tests {
                 .unwrap()
                 .join("install-manifest.json")
         );
+    }
+
+    #[test]
+    fn installer_adds_path_by_default() {
+        let cli = Cli {
+            install: false,
+            uninstall: false,
+            unpack_only: false,
+            add_to_path: false,
+            install_dir: None,
+        };
+
+        assert!(should_add_to_path(&cli));
+    }
+
+    #[test]
+    fn unpack_only_skips_path_update() {
+        let cli = Cli {
+            install: false,
+            uninstall: false,
+            unpack_only: true,
+            add_to_path: true,
+            install_dir: None,
+        };
+
+        assert!(!should_add_to_path(&cli));
+    }
+
+    #[test]
+    fn finds_first_matching_command_from_path_value() {
+        let dir = test_dir("path-search");
+        let bin_dir = dir.join("bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        let candidate = bin_dir.join("devkit.exe");
+        fs::write(&candidate, b"binary").unwrap();
+        let path_value = std::env::join_paths([bin_dir.as_path()]).unwrap();
+
+        let found = find_all_commands_on_path("devkit.exe", &path_value)
+            .into_iter()
+            .next()
+            .unwrap();
+
+        assert_eq!(found, candidate);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn finds_all_matching_commands_from_path_value() {
+        let dir = test_dir("path-search-all");
+        let bin_one = dir.join("bin-one");
+        let bin_two = dir.join("bin-two");
+        fs::create_dir_all(&bin_one).unwrap();
+        fs::create_dir_all(&bin_two).unwrap();
+        let one = bin_one.join("devkit.exe");
+        let two = bin_two.join("devkit.exe");
+        fs::write(&one, b"one").unwrap();
+        fs::write(&two, b"two").unwrap();
+        let path_value = std::env::join_paths([bin_one.as_path(), bin_two.as_path()]).unwrap();
+
+        let found = find_all_commands_on_path("devkit.exe", &path_value);
+
+        assert_eq!(found, vec![one, two]);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn install_warnings_report_stale_current_shell_path() {
+        let dir = test_dir("path-warning-stale");
+        let other = dir.join("other").join("devkit.exe");
+        let installed = dir.join("installed").join("devkit.exe");
+        fs::create_dir_all(other.parent().unwrap()).unwrap();
+        fs::write(&other, b"other").unwrap();
+        fs::create_dir_all(installed.parent().unwrap()).unwrap();
+        fs::write(&installed, b"installed").unwrap();
+        let original = std::env::var_os("PATH");
+        let path_value = std::env::join_paths([other.parent().unwrap()]).unwrap();
+        unsafe {
+            std::env::set_var("PATH", &path_value);
+        }
+
+        let cli = Cli {
+            install: false,
+            uninstall: false,
+            unpack_only: false,
+            add_to_path: false,
+            install_dir: None,
+        };
+        let warnings = install_warnings(&cli, &installed);
+
+        assert!(
+            warnings
+                .iter()
+                .any(|item| item.contains("current shell still resolves"))
+        );
+
+        match original {
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn resolution_message_reports_current_and_next_shell_paths() {
+        let dir = test_dir("path-resolution");
+        let other_dir = dir.join("other");
+        let installed_dir = dir.join("installed");
+        fs::create_dir_all(&other_dir).unwrap();
+        fs::create_dir_all(&installed_dir).unwrap();
+        let other = other_dir.join("devkit.exe");
+        let installed = installed_dir.join("devkit.exe");
+        fs::write(&other, b"other").unwrap();
+        fs::write(&installed, b"installed").unwrap();
+        let original = std::env::var_os("PATH");
+        let path_value =
+            std::env::join_paths([other_dir.as_path(), installed_dir.as_path()]).unwrap();
+        unsafe {
+            std::env::set_var("PATH", &path_value);
+        }
+
+        let cli = Cli {
+            install: false,
+            uninstall: false,
+            unpack_only: false,
+            add_to_path: false,
+            install_dir: None,
+        };
+        let message = install_resolution_message(&cli, &installed).unwrap();
+
+        assert!(message.contains("current shell resolves"));
+        assert!(message.contains(&installed.display().to_string()));
+
+        match original {
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

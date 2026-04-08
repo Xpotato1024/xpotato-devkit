@@ -182,10 +182,10 @@ See [tag-triggered release docs](docs/release/tag-triggered-release.md) for the 
 Windows users can follow [docs/install/windows-installation.md](docs/install/windows-installation.md) for the native user-local install flow.
 Linux and macOS release archives ship the `devkit` binary only and do not include a native installer.
 
-The Windows release archive includes `devkit-installer.exe` and `devkit.exe`. Extract it, run the installer, and optionally add the install directory to PATH:
+The Windows release archive includes `devkit-installer.exe`. Extract it and run the installer. By default it installs to `%LOCALAPPDATA%\\Xpotato\\devkit` and adds that directory to the user PATH. Use `--unpack-only` to skip PATH changes:
 
 ```powershell
-.\devkit-installer.exe --add-to-path
+.\devkit-installer.exe --unpack-only
 ```
 
-The installer writes `install-manifest.json` and a generated `uninstall.exe` under `%LOCALAPPDATA%\Xpotato\devkit`, and PATH updates are broadcast to newly opened Windows shells.
+The installer writes `install-manifest.json` and a generated `uninstall.exe` under `%LOCALAPPDATA%\Xpotato\devkit`, broadcasts PATH updates to newly opened Windows shells, warns if another `devkit.exe` is already present on PATH, and carries its own embedded `devkit.exe` payload for single-file redistribution.
