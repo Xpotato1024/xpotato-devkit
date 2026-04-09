@@ -1,10 +1,11 @@
 [package]
-name = "devkit-tree"
+name = "devkit-search"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-devkit-core = { version = "0.1.0", path = "../devkit-core" }
+devkit-block = { version = "0.1.0", path = "../devkit-block" }
 glob = "0.3.3"
 ignore = "0.4.25"
+regex = "1.12.3"
 serde = { version = "1.0.228", features = ["derive"] }

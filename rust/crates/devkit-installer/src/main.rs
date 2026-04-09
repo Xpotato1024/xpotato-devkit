@@ -40,6 +40,10 @@ struct Cli {
     /// Override the default install directory
     #[arg(long)]
     install_dir: Option<PathBuf>,
+
+    /// Suppress regular stdout output on success
+    #[arg(long)]
+    silent: bool,
 }
 
 #[derive(Debug)]
@@ -145,22 +149,28 @@ fn install(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
 
     write_manifest(&paths.manifest_path, &manifest)?;
 
-    println!("Installed devkit to {}", paths.install_dir.display());
-    println!("Binary: {}", paths.devkit_exe.display());
-    println!("Uninstall: {}", paths.uninstall_exe.display());
-    println!("Payload source: {}", payload_source.label());
-    println!("PATH status: {}", path_status.label());
+    emit_stdout(
+        cli,
+        &format!("Installed devkit to {}", paths.install_dir.display()),
+    );
+    emit_stdout(cli, &format!("Binary: {}", paths.devkit_exe.display()));
+    emit_stdout(
+        cli,
+        &format!("Uninstall: {}", paths.uninstall_exe.display()),
+    );
+    emit_stdout(cli, &format!("Payload source: {}", payload_source.label()));
+    emit_stdout(cli, &format!("PATH status: {}", path_status.label()));
 
     if should_add_to_path(cli) {
-        println!("Open a new shell to use the updated PATH.");
+        emit_stdout(cli, "Open a new shell to use the updated PATH.");
     }
 
     if let Some(message) = install_resolution_message(cli, &paths.devkit_exe) {
-        println!("Resolution: {message}");
+        emit_stdout(cli, &format!("Resolution: {message}"));
     }
 
     for message in install_warnings(cli, &paths.devkit_exe) {
-        println!("Warning: {message}");
+        emit_stdout(cli, &format!("Warning: {message}"));
     }
 
     Ok(())
@@ -205,8 +215,11 @@ fn uninstall(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
 
     remove_dir_if_empty(&paths.install_dir)?;
 
-    println!("Uninstall complete.");
-    println!("Install directory: {}", paths.install_dir.display());
+    emit_stdout(cli, "Uninstall complete.");
+    emit_stdout(
+        cli,
+        &format!("Install directory: {}", paths.install_dir.display()),
+    );
     Ok(())
 }
 
@@ -241,6 +254,12 @@ impl PathStatus {
 
 fn should_add_to_path(cli: &Cli) -> bool {
     !cli.unpack_only
+}
+
+fn emit_stdout(cli: &Cli, message: &str) {
+    if !cli.silent {
+        println!("{message}");
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -531,6 +550,7 @@ mod tests {
             unpack_only: false,
             add_to_path: false,
             install_dir: None,
+            silent: false,
         };
         let uninstall_path = std::env::temp_dir()
             .join("Xpotato")
@@ -556,6 +576,7 @@ mod tests {
             unpack_only: false,
             add_to_path: false,
             install_dir: None,
+            silent: false,
         };
 
         assert!(should_add_to_path(&cli));
@@ -569,6 +590,7 @@ mod tests {
             unpack_only: true,
             add_to_path: true,
             install_dir: None,
+            silent: false,
         };
 
         assert!(!should_add_to_path(&cli));
@@ -634,6 +656,7 @@ mod tests {
             unpack_only: false,
             add_to_path: false,
             install_dir: None,
+            silent: false,
         };
         let warnings = install_warnings(&cli, &installed);
 
@@ -674,6 +697,7 @@ mod tests {
             unpack_only: false,
             add_to_path: false,
             install_dir: None,
+            silent: false,
         };
         let message = install_resolution_message(&cli, &installed).unwrap();
 

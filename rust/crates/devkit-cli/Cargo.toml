@@ -13,6 +13,7 @@ devkit-git = { version = "0.1.0", path = "../devkit-git" }
 devkit-md = { version = "0.1.0", path = "../devkit-md" }
 devkit-metrics = { version = "0.1.0", path = "../devkit-metrics" }
 devkit-patch = { version = "0.1.0", path = "../devkit-patch" }
+devkit-search = { version = "0.1.0", path = "../devkit-search" }
 devkit-tree = { version = "0.1.0", path = "../devkit-tree" }
 serde_json = "1.0.149"
 

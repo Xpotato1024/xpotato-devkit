@@ -194,6 +194,10 @@ pub fn list_markdown_headings(filepath: &Path) -> Result<Vec<HeadingEntry>, Stri
 
 pub fn list_functions(filepath: &Path) -> Result<Vec<FunctionEntry>, String> {
     let content = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
+    Ok(list_functions_in_text(&content))
+}
+
+pub fn list_functions_in_text(content: &str) -> Vec<FunctionEntry> {
     let mut result = Vec::new();
 
     for (idx, line) in content.lines().enumerate() {
@@ -210,7 +214,7 @@ pub fn list_functions(filepath: &Path) -> Result<Vec<FunctionEntry>, String> {
         }
     }
 
-    Ok(result)
+    result
 }
 
 fn slugify_heading(text: &str) -> String {
@@ -337,7 +341,19 @@ pub fn find_block_bounds(
         }
         let start: usize = parts[0].parse().map_err(|_| "Invalid line range")?;
         let end: usize = parts[1].parse().map_err(|_| "Invalid line range")?;
-        return Ok((start.saturating_sub(1), end));
+        if start == 0 || end == 0 || end < start {
+            return Err("Invalid line range".to_string());
+        }
+        let start_index = start.saturating_sub(1);
+        if start_index >= lines.len() {
+            return Err(format!(
+                "Line range '{}' starts beyond end of file ({} lines)",
+                r,
+                lines.len()
+            ));
+        }
+        let end_index = end.min(lines.len());
+        return Ok((start_index, end_index));
     }
 
     if let Some(m) = marker {
@@ -592,6 +608,14 @@ mod tests {
     }
 
     #[test]
+    fn lists_functions_from_text_without_file_io() {
+        let entries = list_functions_in_text("pub fn hello() {}\nclass Service\n");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].name, "hello");
+        assert_eq!(entries[1].name, "Service");
+    }
+
+    #[test]
     fn extracts_heading_block() {
         let temp = TempDir::new();
         let file = temp.path.join("doc.md");
@@ -615,5 +639,25 @@ mod tests {
 
         let error = extract_block(&file, None, None, Some("Install Gude"), None, true).unwrap_err();
         assert!(error.contains("Did you mean"));
+    }
+
+    #[test]
+    fn line_range_clamps_to_end_of_file() {
+        let temp = TempDir::new();
+        let file = temp.path.join("doc.txt");
+        fs::write(&file, "one\ntwo\nthree\n").unwrap();
+
+        let content = extract_block(&file, Some("2-99"), None, None, None, false).unwrap();
+        assert_eq!(content, "two\nthree\n");
+    }
+
+    #[test]
+    fn line_range_start_beyond_end_of_file_returns_error() {
+        let temp = TempDir::new();
+        let file = temp.path.join("doc.txt");
+        fs::write(&file, "one\ntwo\n").unwrap();
+
+        let error = extract_block(&file, Some("5-9"), None, None, None, false).unwrap_err();
+        assert!(error.contains("starts beyond end of file"));
     }
 }

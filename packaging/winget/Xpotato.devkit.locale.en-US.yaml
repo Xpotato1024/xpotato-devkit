@@ -1,0 +1,21 @@
+# Draft manifest for winget-pkgs submission.
+PackageIdentifier: Xpotato.devkit
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: Xpotato
+PublisherUrl: https://github.com/Xpotato1024
+PackageName: devkit
+Moniker: devkit
+ShortDescription: Repo-agnostic CLI for deterministic AI-assisted development workflows.
+Description: >
+  devkit provides deterministic helper commands for diff summarization, block extraction,
+  patch diagnosis and application, encoding checks, and Git drafting workflows.
+Tags:
+  - ai
+  - cli
+  - developer-tools
+  - git
+  - patch
+  - diff
+ManifestType: defaultLocale
+ManifestVersion: 1.9.0

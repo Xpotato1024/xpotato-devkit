@@ -223,6 +223,7 @@ dependencies = [
  "devkit-md",
  "devkit-metrics",
  "devkit-patch",
+ "devkit-search",
  "devkit-tree",
  "serde_json",
 ]
@@ -286,6 +287,18 @@ version = "0.1.0"
 dependencies = [
  "lazy_static",
  "regex",
+ "serde",
+]
+
+[[package]]
+name = "devkit-search"
+version = "0.1.0"
+dependencies = [
+ "devkit-block",
+ "glob",
+ "ignore",
+ "regex",
+ "serde",
 ]
 
 [[package]]
@@ -293,6 +306,7 @@ name = "devkit-tree"
 version = "0.1.0"
 dependencies = [
  "devkit-core",
+ "glob",
  "ignore",
  "serde",
 ]
