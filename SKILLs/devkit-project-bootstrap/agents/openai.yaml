@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Bootstrap"
+  short_description: "Install devkit and initialize config"
+  default_prompt: "Use $devkit-project-bootstrap to install devkit locally, initialize devkit.toml, and verify the minimal setup path."

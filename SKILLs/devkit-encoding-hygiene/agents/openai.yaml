@@ -1,0 +1,4 @@
+interface:
+  display_name: "Encoding Hygiene"
+  short_description: "Check and normalize text hygiene"
+  default_prompt: "Use $devkit-encoding-hygiene to inspect or normalize UTF-8, BOM, newline, and text-hygiene issues with deterministic devkit commands."

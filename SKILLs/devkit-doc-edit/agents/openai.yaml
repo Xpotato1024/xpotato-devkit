@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doc Edit"
+  short_description: "Section-safe doc and README editing"
+  default_prompt: "Use $devkit-doc-edit to update README or docs with narrow markdown operations, generated note templates, and encoding-safe verification."

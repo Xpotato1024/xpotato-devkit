@@ -1,0 +1,4 @@
+interface:
+  display_name: "Metrics Review"
+  short_description: "Review local devkit usage metrics"
+  default_prompt: "Use $devkit-metrics-review to inspect devkit metrics, summarize command frequency and timing, and report missing-data states explicitly."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release Maintainer"
+  short_description: "Verify tags, packaging, and release metadata"
+  default_prompt: "Use $devkit-release-maintainer to validate release tags, installer packaging, and user-visible version metadata before or after a devkit release."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Drafts"
+  short_description: "Draft git text and guarded pushes"
+  default_prompt: "Use $devkit-git-drafts to generate commit messages or PR bodies from the right diff scope and keep safe-push checks intact."
