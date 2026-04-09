@@ -35,6 +35,7 @@ Use `devkit` to keep the edit loop short and deterministic.
 - Do not guess at file state when `patch diagnose` fails.
 - Do not fall back to whole-file reads unless the selector cannot be resolved.
 - Keep repo-specific interpretation outside `devkit`; use it for extraction, patching, and factual reporting.
+- Prefer `--brief` or JSON output for agent-to-agent/tool-to-tool handoff because the default human-facing terminal output may be colorized.
 
 ## Reference
 

@@ -11,6 +11,8 @@ permissions:
 jobs:
   build:
     name: Build (${{ matrix.target }})
+    env:
+      DEVKIT_RELEASE_VERSION: ${{ github.ref_name }}
     strategy:
       fail-fast: false
       matrix:

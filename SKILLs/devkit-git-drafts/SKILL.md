@@ -31,6 +31,7 @@ Use `devkit` when the task is about Git-facing text or a safe push.
 - Do not draft from an empty diff.
 - Do not infer repository-specific policy from the tool output.
 - Keep the output as plain text or Markdown so it can be reused directly.
+- Prefer file output or machine-oriented flags from upstream inspection commands when another tool will consume the result, because default terminal output may be colorized for humans.
 
 ## Reference
 

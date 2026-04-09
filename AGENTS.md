@@ -60,6 +60,9 @@
 - Design commands so they can be used both by humans and by coding agents.
 - Prefer stdout, file output, and JSON output over interactive-only behavior.
 - Prefer deterministic behavior and explicit errors over silent fallback logic.
+- Treat user-visible version reporting as release metadata, not just crate metadata.
+- For tagged releases, ensure user-facing version outputs such as `devkit -V`, installer `--version`, release artifacts, and installer manifests align with the pushed release tag.
+- If crate `version` values and release tags intentionally differ, document and verify the release-version injection path instead of assuming `CARGO_PKG_VERSION` is sufficient.
 
 ## Verification Policy
 - Prefer deterministic local checks over prose reasoning whenever possible.
@@ -68,6 +71,7 @@
 - Run targeted checks relevant to the changed area unless broader validation is clearly needed.
 - Before committing, review the diff and confirm that unrelated lines were not changed accidentally.
 - For text handling changes, verify encoding, newline behavior, and failure modes explicitly.
+- For release-related changes, verify both local fallback behavior and tagged-release behavior when version or packaging metadata is affected.
 
 ## Output Policy
 - Do not print full file contents unless explicitly requested.

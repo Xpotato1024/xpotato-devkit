@@ -42,6 +42,9 @@ Global flags currently implemented in Rust:
 - `--time`
 - `--time-json`
 
+Human-readable terminal output may use ANSI color on compatible terminals.
+`--brief` and JSON output remain plain text so agents and scripts can parse them safely.
+
 > [!IMPORTANT]
 > The Rust CLI now covers the primary public command groups described in this repository.
 > Older design notes may still mention exploratory variants that are not part of the stable public CLI surface.
@@ -166,6 +169,8 @@ For agent-facing guidance, see:
 - [AI agent workflow](docs/design/ai_agent_workflow.md)
 - `SKILLs/devkit-inspect-edit-verify/`
 - `SKILLs/devkit-git-drafts/`
+
+Bundled repo skills should prefer `--brief` or JSON-capable output when another tool or agent will consume the result, because the default human-facing terminal output may be colorized.
 
 ## Release
 
