@@ -100,9 +100,7 @@ fn schedule_delete_on_reboot(path: &Path) -> bool {
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();
-        unsafe {
-            MoveFileExW(wide.as_ptr(), std::ptr::null(), MOVEFILE_DELAY_UNTIL_REBOOT) != 0
-        }
+        unsafe { MoveFileExW(wide.as_ptr(), std::ptr::null(), MOVEFILE_DELAY_UNTIL_REBOOT) != 0 }
     }
 
     #[cfg(not(target_os = "windows"))]
