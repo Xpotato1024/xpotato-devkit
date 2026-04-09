@@ -167,8 +167,14 @@ cargo test -p devkit-block -p devkit-core -p devkit-metrics -p devkit-patch -p d
 For agent-facing guidance, see:
 
 - [AI agent workflow](docs/design/ai_agent_workflow.md)
-- `SKILLs/devkit-inspect-edit-verify/`
+- `SKILLs/devkit-doc-edit/`
+- `SKILLs/devkit-encoding-hygiene/`
 - `SKILLs/devkit-git-drafts/`
+- `SKILLs/devkit-inspect-edit-verify/`
+- `SKILLs/devkit-metrics-review/`
+- `SKILLs/devkit-project-bootstrap/`
+- `SKILLs/devkit-release-maintainer/`
+- `SKILLs/devkit-tree-explore/`
 
 Bundled repo skills should prefer `--brief` or JSON-capable output when another tool or agent will consume the result, because the default human-facing terminal output may be colorized.
 

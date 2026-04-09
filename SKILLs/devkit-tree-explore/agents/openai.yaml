@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tree Explore"
+  short_description: "Survey repository structure quickly"
+  default_prompt: "Use $devkit-tree-explore to map repository structure with devkit tree, then narrow the next files to inspect."

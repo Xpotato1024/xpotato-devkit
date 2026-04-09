@@ -1,0 +1,4 @@
+interface:
+  display_name: "Inspect Edit Verify"
+  short_description: "Diff, block, patch, and verify loop"
+  default_prompt: "Use $devkit-inspect-edit-verify to inspect change scope, edit the smallest block, and verify the result with devkit diff, block, and patch commands."
