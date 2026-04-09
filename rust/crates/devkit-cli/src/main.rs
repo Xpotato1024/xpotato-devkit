@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
+use std::io::IsTerminal;
 use std::time::Instant;
 
 /// devkit-rs: repo-agnostic AI-assisted development toolkit
@@ -343,6 +344,82 @@ fn render_patch_diagnostic(
     Ok(())
 }
 
+struct OutputPalette {
+    enabled: bool,
+}
+
+impl OutputPalette {
+    fn stdout(cli: &Cli) -> Self {
+        let no_color = std::env::var_os("NO_COLOR").is_some()
+            || std::env::var_os("CLICOLOR").is_some_and(|value| value == "0");
+        let force_color = std::env::var_os("FORCE_COLOR").is_some()
+            || std::env::var_os("CLICOLOR_FORCE").is_some_and(|value| value != "0");
+        let term_allows_color = std::env::var("TERM").map_or(true, |term| term != "dumb");
+        let enabled = !cli.brief
+            && !cli.time_json
+            && term_allows_color
+            && !no_color
+            && (force_color || std::io::stdout().is_terminal());
+        Self { enabled }
+    }
+
+    fn paint(&self, code: &str, text: &str) -> String {
+        if self.enabled {
+            format!("\x1b[{code}m{text}\x1b[0m")
+        } else {
+            text.to_string()
+        }
+    }
+
+    fn header(&self, text: &str) -> String {
+        self.paint("1;36", text)
+    }
+
+    fn ok(&self, text: &str) -> String {
+        self.paint("1;32", text)
+    }
+
+    fn fail(&self, text: &str) -> String {
+        self.paint("1;31", text)
+    }
+
+    fn warn(&self, text: &str) -> String {
+        self.paint("1;33", text)
+    }
+
+    fn info(&self, text: &str) -> String {
+        self.paint("38;5;81", text)
+    }
+
+    fn file(&self, text: &str) -> String {
+        self.paint("37", text)
+    }
+
+    fn path(&self, text: &str) -> String {
+        self.paint("38;5;110", text)
+    }
+
+    fn dir(&self, text: &str) -> String {
+        self.paint("1;34", text)
+    }
+
+    fn added(&self, text: &str) -> String {
+        self.paint("32", text)
+    }
+
+    fn deleted(&self, text: &str) -> String {
+        self.paint("31", text)
+    }
+
+    fn dim(&self, text: &str) -> String {
+        self.paint("2", text)
+    }
+
+    fn muted(&self, text: &str) -> String {
+        self.paint("90", text)
+    }
+}
+
 fn format_encoding_result_line(result: &devkit_encoding::EncodingCheckResult) -> String {
     if result.has_issues() {
         let mut issues = result.issue_labels();
@@ -401,6 +478,70 @@ fn format_normalize_brief(results: &[devkit_encoding::NormalizeResult], dry_run:
             changed
         )
     }
+}
+
+fn render_tree_line(line: &str, palette: &OutputPalette) -> String {
+    if !palette.enabled {
+        return line.to_string();
+    }
+
+    if line.ends_with('/') {
+        return palette.dir(line);
+    }
+
+    if let Some(index) = line.rfind(" (")
+        && line.ends_with(')')
+    {
+        return format!(
+            "{}{}",
+            palette.file(&line[..index]),
+            palette.dim(&line[index..])
+        );
+    }
+
+    palette.file(line)
+}
+
+fn render_encoding_result_line(
+    result: &devkit_encoding::EncodingCheckResult,
+    palette: &OutputPalette,
+) -> String {
+    if !palette.enabled {
+        return format_encoding_result_line(result);
+    }
+
+    if result.has_issues() {
+        let mut issues = result.issue_labels();
+        if result.error.is_some() && !issues.contains(&"error") {
+            issues.push("error");
+        }
+        format!(
+            "{}\t{}\t{}",
+            palette.fail("FAIL"),
+            palette.path(&result.file),
+            palette.warn(&issues.join(", "))
+        )
+    } else {
+        format!(
+            "{}\t{}\t{}",
+            palette.ok("OK"),
+            palette.path(&result.file),
+            palette.dim("clean")
+        )
+    }
+}
+
+fn render_normalize_result_line(status: &str, file: &str, palette: &OutputPalette) -> String {
+    if !palette.enabled {
+        return format!("{status}\t{file}");
+    }
+
+    let styled_status = match status {
+        "CHANGED" => palette.ok(status),
+        "WOULD_CHANGE" => palette.warn(status),
+        _ => palette.muted(status),
+    };
+    format!("{styled_status}\t{}", palette.path(file))
 }
 
 fn command_label(command: &Commands) -> &'static str {
@@ -555,6 +696,7 @@ pub enum GitCommands {
 fn main() {
     let cli = Cli::parse();
     let start = Instant::now();
+    let palette = OutputPalette::stdout(&cli);
 
     match &cli.command {
         Commands::Tree {
@@ -599,9 +741,9 @@ fn main() {
             let mut lines = Vec::new();
             devkit_tree::format_tree(&entry, "", true, true, &mut lines);
             for line in lines {
-                println!("{}", line);
+                println!("{}", render_tree_line(&line, &palette));
             }
-            println!("{}", devkit_tree::tree_summary(&entry));
+            println!("{}", palette.dim(&devkit_tree::tree_summary(&entry)));
         }
         Commands::Encoding { command } => match command {
             EncodingCommands::Check { files } => {
@@ -655,13 +797,18 @@ fn main() {
                     println!("{}", format_encoding_brief(&results));
                 } else {
                     for result in &results {
-                        println!("{}", format_encoding_result_line(result));
+                        println!("{}", render_encoding_result_line(result, &palette));
                     }
                     let issue_count = results.iter().filter(|result| result.has_issues()).count();
                     println!(
-                        "Summary\t{} files checked\t{} issues",
-                        results.len(),
-                        issue_count
+                        "{}\t{}\t{}",
+                        palette.header("Summary"),
+                        palette.info(&format!("{} files checked", results.len())),
+                        if issue_count == 0 {
+                            palette.ok("0 issues")
+                        } else {
+                            palette.warn(&format!("{issue_count} issues"))
+                        }
                     );
                 }
 
@@ -743,7 +890,10 @@ fn main() {
                         } else {
                             "UNCHANGED"
                         };
-                        println!("{}\t{}", status, result.file);
+                        println!(
+                            "{}",
+                            render_normalize_result_line(status, &result.file, &palette)
+                        );
                     }
                 }
             }
@@ -1175,9 +1325,20 @@ path = ".devkit-metrics.jsonl"
                                 summary.total_deletions
                             );
                         } else {
-                            println!("Diff Summary ({})", summary.scope.description);
-                            println!("{:-<50}", "-");
-                            println!("{:<40} {:>5} {:>5}", "File", "(+)", "(-)");
+                            println!(
+                                "{}",
+                                palette.header(&format!(
+                                    "Diff Summary ({})",
+                                    summary.scope.description
+                                ))
+                            );
+                            println!("{}", palette.dim(&"-".repeat(50)));
+                            println!(
+                                "{} {} {}",
+                                palette.header(&format!("{:<40}", "File")),
+                                palette.header(&format!("{:>5}", "(+)")),
+                                palette.header(&format!("{:>5}", "(-)"))
+                            );
                             for f in &summary.files {
                                 let adds = if f.is_binary {
                                     "bin".to_string()
@@ -1189,12 +1350,32 @@ path = ".devkit-metrics.jsonl"
                                 } else {
                                     f.deletions.to_string()
                                 };
-                                println!("{:<40} {:>5} {:>5}", f.path, adds, dels);
+                                let path_cell = format!("{:<40}", f.path);
+                                let add_cell = format!("{:>5}", adds);
+                                let del_cell = format!("{:>5}", dels);
+                                let add_rendered = if f.is_binary {
+                                    palette.warn(&add_cell)
+                                } else {
+                                    palette.added(&add_cell)
+                                };
+                                let del_rendered = if f.is_binary {
+                                    palette.warn(&del_cell)
+                                } else {
+                                    palette.deleted(&del_cell)
+                                };
+                                println!(
+                                    "{} {} {}",
+                                    palette.path(&path_cell),
+                                    add_rendered,
+                                    del_rendered
+                                );
                             }
-                            println!("{:-<50}", "-");
+                            println!("{}", palette.dim(&"-".repeat(50)));
                             println!(
-                                "{:<40} {:>5} {:>5}",
-                                "Total", summary.total_additions, summary.total_deletions
+                                "{} {} {}",
+                                palette.header(&format!("{:<40}", "Total")),
+                                palette.added(&format!("{:>5}", summary.total_additions)),
+                                palette.deleted(&format!("{:>5}", summary.total_deletions))
                             );
                         }
                     }
@@ -1455,14 +1636,35 @@ path = ".devkit-metrics.jsonl"
                 }
 
                 let summary = devkit_metrics::summarize_metrics(&records);
-                println!("Devkit Usage Metrics (Total: {} runs)", records.len());
-                println!("Command\tCount\tAvg Time (ms)\tBrief %\tSuccess %");
+                println!(
+                    "{}",
+                    palette.header(&format!(
+                        "Devkit Usage Metrics (Total: {} runs)",
+                        records.len()
+                    ))
+                );
+                println!(
+                    "{} {} {} {} {}",
+                    palette.header(&format!("{:<28}", "Command")),
+                    palette.header(&format!("{:>7}", "Count")),
+                    palette.header(&format!("{:>14}", "Avg Time (ms)")),
+                    palette.header(&format!("{:>9}", "Brief %")),
+                    palette.header(&format!("{:>11}", "Success %"))
+                );
                 for (cmd, st) in summary.iter().rev() {
                     let brief_pct = (st.brief_count as f64 / st.count as f64) * 100.0;
                     let success_pct = st.success_rate * 100.0;
                     println!(
-                        "{}\t{}\t{:.1}\t{:.1}%\t{:.1}%",
-                        cmd, st.count, st.avg_ms, brief_pct, success_pct
+                        "{} {} {} {} {}",
+                        palette.path(&format!("{:<28}", cmd)),
+                        palette.info(&format!("{:>7}", st.count)),
+                        palette.file(&format!("{:>14.1}", st.avg_ms)),
+                        palette.warn(&format!("{:>8.1}%", brief_pct)),
+                        if success_pct >= 99.9 {
+                            palette.ok(&format!("{:>10.1}%", success_pct))
+                        } else {
+                            palette.warn(&format!("{:>10.1}%", success_pct))
+                        }
                     );
                 }
             }
