@@ -33,3 +33,7 @@ Use `devkit` when the task is about measuring local usage patterns.
 - Treat `metrics show` output as observational, not causal proof.
 - Preserve the distinction between missing data and healthy low activity.
 - Prefer quoting the actual command labels shown by `devkit metrics show`.
+
+## Reference
+
+- When summarizing command frequency or performance trends, read [references/interpretation-guide.md](references/interpretation-guide.md).

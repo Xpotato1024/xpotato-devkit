@@ -31,3 +31,7 @@ Use `devkit` when the task is about initial local setup.
 - Do not overwrite an existing config unless the task explicitly allows it.
 - Keep setup instructions generic and cross-platform.
 - Prefer the CLI flow over ad hoc manual file creation.
+
+## Reference
+
+- When walking through setup step-by-step, read [references/setup-checklist.md](references/setup-checklist.md).

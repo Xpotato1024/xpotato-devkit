@@ -40,3 +40,4 @@ Use `devkit` when the task is primarily about documentation changes.
 ## Reference
 
 - See [AI agent workflow](../../docs/design/ai_agent_workflow.md) for the inspect/edit/verify loop.
+- When the exact markdown/doc command choice is unclear, read [references/command-patterns.md](references/command-patterns.md).

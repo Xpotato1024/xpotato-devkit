@@ -34,3 +34,4 @@ Use `devkit` to keep text handling deterministic and verifiable.
 ## Reference
 
 - See [output conventions](../../docs/design/output_conventions.md) for `--brief` expectations.
+- When newline normalization is the main concern, read [references/newline-playbook.md](references/newline-playbook.md).

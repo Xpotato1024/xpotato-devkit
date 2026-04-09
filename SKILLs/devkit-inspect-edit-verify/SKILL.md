@@ -40,3 +40,4 @@ Use `devkit` to keep the edit loop short and deterministic.
 ## Reference
 
 - See [AI agent workflow](../../docs/design/ai_agent_workflow.md) for the full inspect/edit/verify sequence.
+- When choosing between headings, symbols, context, and line selectors, read [references/selector-strategy.md](references/selector-strategy.md).

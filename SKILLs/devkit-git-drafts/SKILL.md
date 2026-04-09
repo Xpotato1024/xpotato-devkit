@@ -36,3 +36,4 @@ Use `devkit` when the task is about Git-facing text or a safe push.
 ## Reference
 
 - See [AI agent workflow](../../docs/design/ai_agent_workflow.md) for the inspect/edit/verify loop that feeds these Git helpers.
+- When the diff boundary is unclear, read [references/diff-scope-guide.md](references/diff-scope-guide.md).

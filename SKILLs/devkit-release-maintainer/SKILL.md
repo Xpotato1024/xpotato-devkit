@@ -39,3 +39,4 @@ Use this skill for release-oriented work on `devkit` itself.
 
 - See `docs/release/`
 - See `docs/reports/release_version_metadata_report_2026-04-09.md`
+- When actively preparing or validating a release, read [references/release-checklist.md](references/release-checklist.md).

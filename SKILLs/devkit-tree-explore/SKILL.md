@@ -32,3 +32,7 @@ Use `devkit tree` to compress repository structure before deeper inspection.
 - Prefer smaller subtrees and bounded depth before scanning the entire repo.
 - Use `tree` for orientation, not as a substitute for file-level verification.
 - Combine with `block` commands once the likely target files are identified.
+
+## Reference
+
+- When choosing a tree scan pattern, read [references/exploration-patterns.md](references/exploration-patterns.md).
