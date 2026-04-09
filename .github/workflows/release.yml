@@ -54,11 +54,10 @@ jobs:
       - name: Build Windows installer
         if: runner.os == 'Windows'
         working-directory: rust
-        env:
-          DEVKIT_INSTALLER_PAYLOAD: ${{ github.workspace }}/rust/target/${{ matrix.target }}/release/devkit.exe
-          DEVKIT_CLEANUP_HELPER: ${{ github.workspace }}/rust/target/${{ matrix.target }}/release/devkit-cleanup-helper.exe
         run: |
           cargo build --locked --release --target ${{ matrix.target }} --package devkit-installer --bin devkit-cleanup-helper
+          $env:DEVKIT_INSTALLER_PAYLOAD = "${{ github.workspace }}/rust/target/${{ matrix.target }}/release/devkit.exe"
+          $env:DEVKIT_CLEANUP_HELPER = "${{ github.workspace }}/rust/target/${{ matrix.target }}/release/devkit-cleanup-helper.exe"
           cargo build --locked --release --target ${{ matrix.target }} --package devkit-installer --bin devkit-installer
 
       - name: Package asset (Unix)
