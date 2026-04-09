@@ -13,8 +13,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use windows_path::{add_user_path_entry, remove_user_path_entry};
 
+const RELEASE_VERSION: &str = match option_env!("DEVKIT_RELEASE_VERSION") {
+    Some(version) => version,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 #[derive(Parser, Debug)]
-#[command(author, version, about = "Native Windows installer for devkit")]
+#[command(author, version = RELEASE_VERSION, about = "Native Windows installer for devkit")]
 struct Cli {
     /// Install the bundled devkit payload into the user profile
     #[arg(long)]
@@ -125,7 +130,7 @@ fn install(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
 
     let manifest = InstallManifest {
         product: "devkit".to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
+        version: RELEASE_VERSION.to_string(),
         install_dir: paths.install_dir.to_string_lossy().to_string(),
         installed_at: chrono::Utc::now().to_rfc3339(),
         installed_files,
@@ -135,7 +140,7 @@ fn install(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
         } else {
             None
         },
-        installer_version: env!("CARGO_PKG_VERSION").to_string(),
+        installer_version: RELEASE_VERSION.to_string(),
     };
 
     write_manifest(&paths.manifest_path, &manifest)?;

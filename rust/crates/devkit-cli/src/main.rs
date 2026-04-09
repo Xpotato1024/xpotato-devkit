@@ -2,9 +2,14 @@ use clap::{Parser, Subcommand, ValueEnum};
 use std::io::IsTerminal;
 use std::time::Instant;
 
+const RELEASE_VERSION: &str = match option_env!("DEVKIT_RELEASE_VERSION") {
+    Some(version) => version,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 /// devkit-rs: repo-agnostic AI-assisted development toolkit
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version = RELEASE_VERSION, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Cli {
     /// Enable brief output mode
