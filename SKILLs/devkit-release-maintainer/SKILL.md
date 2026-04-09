@@ -28,6 +28,8 @@ Use this skill for release-oriented work on `devkit` itself.
    - Build `devkit-cleanup-helper`
    - Build `devkit-installer` with embedded payload env vars
 4. Only then proceed to tag / release publication.
+5. Use the bundled checker when the version-alignment path itself needs a deterministic audit.
+   - `python scripts/check_release_version_alignment.py`
 
 ## Rules
 
@@ -40,3 +42,4 @@ Use this skill for release-oriented work on `devkit` itself.
 - See `docs/release/`
 - See `docs/reports/release_version_metadata_report_2026-04-09.md`
 - When actively preparing or validating a release, read [references/release-checklist.md](references/release-checklist.md).
+- Use [scripts/check_release_version_alignment.py](scripts/check_release_version_alignment.py) when you need a repeatable static check of the release-version wiring.

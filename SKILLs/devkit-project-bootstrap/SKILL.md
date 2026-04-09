@@ -25,6 +25,8 @@ Use `devkit` when the task is about initial local setup.
    - `devkit --help`
    - `devkit config init --help` if the config path or overwrite behavior matters
    - `devkit encoding check devkit.toml --brief` when a config file was written
+4. When the task is specifically to sync repo-bundled skills into the local Codex store:
+   - `python scripts/sync_repo_skills_to_codex.py`
 
 ## Rules
 
@@ -35,3 +37,4 @@ Use `devkit` when the task is about initial local setup.
 ## Reference
 
 - When walking through setup step-by-step, read [references/setup-checklist.md](references/setup-checklist.md).
+- Use [scripts/sync_repo_skills_to_codex.py](scripts/sync_repo_skills_to_codex.py) when the repo `SKILLs/` tree should be copied into the local Codex skill directory.
