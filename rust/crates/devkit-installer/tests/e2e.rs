@@ -101,6 +101,7 @@ fn installer_round_trip_with_sidecar_payload() {
     copy_file(&devkit_source, &sidecar_path);
 
     let install = Command::new(&installer_path)
+        .arg("--silent")
         .arg("--unpack-only")
         .arg("--install-dir")
         .arg(&install_dir)
@@ -112,6 +113,7 @@ fn installer_round_trip_with_sidecar_payload() {
         String::from_utf8_lossy(&install.stdout),
         String::from_utf8_lossy(&install.stderr)
     );
+    assert!(String::from_utf8_lossy(&install.stdout).trim().is_empty());
 
     let manifest_path = install_dir.join("install-manifest.json");
     let installed_devkit = install_dir.join("devkit.exe");
@@ -128,6 +130,7 @@ fn installer_round_trip_with_sidecar_payload() {
     assert!(manifest["path_value"].is_null());
 
     let uninstall = Command::new(&uninstall_path)
+        .arg("--silent")
         .arg("--install-dir")
         .arg(&install_dir)
         .output()
@@ -138,6 +141,7 @@ fn installer_round_trip_with_sidecar_payload() {
         String::from_utf8_lossy(&uninstall.stdout),
         String::from_utf8_lossy(&uninstall.stderr)
     );
+    assert!(String::from_utf8_lossy(&uninstall.stdout).trim().is_empty());
 
     wait_for_files_removal(&[&installed_devkit, &manifest_path]);
     wait_for_path_removal(&install_dir);

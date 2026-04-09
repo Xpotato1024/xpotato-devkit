@@ -1,0 +1,18 @@
+# Draft manifest for winget-pkgs submission.
+PackageIdentifier: Xpotato.devkit
+PackageVersion: 0.1.0
+InstallerType: exe
+Scope: user
+UpgradeBehavior: install
+Commands:
+  - devkit
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/Xpotato1024/xpotato-devkit/releases/download/v0.1.0/devkit-installer-v0.1.0-x86_64-pc-windows-msvc.exe
+    InstallerSha256: REPLACE_WITH_RELEASE_SHA256
+    InstallerLocale: en-US
+    InstallerSwitches:
+      Silent: --silent
+      SilentWithProgress: --silent
+ManifestType: installer
+ManifestVersion: 1.9.0

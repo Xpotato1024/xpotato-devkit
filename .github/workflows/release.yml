@@ -79,9 +79,11 @@ jobs:
         run: |
           $tag = $env:GITHUB_REF_NAME
           $assetName = "devkit-$tag-${{ matrix.target }}.${{ matrix.archive_ext }}"
+          $standaloneName = "devkit-installer-$tag-${{ matrix.target }}.exe"
           New-Item -ItemType Directory -Force ..\dist\bundle | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/devkit-installer.exe" "..\dist\bundle\devkit-installer.exe"
           Compress-Archive -Path "..\dist\bundle\devkit-installer.exe" -DestinationPath "..\dist\$assetName" -Force
+          Copy-Item "target/${{ matrix.target }}/release/devkit-installer.exe" "..\dist\$standaloneName"
           Remove-Item -Recurse -Force "..\dist\bundle"
 
       - name: Upload packaged asset
@@ -102,6 +104,11 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      - name: Generate release checksums
+        working-directory: dist
+        run: |
+          sha256sum * > "devkit-${GITHUB_REF_NAME}-sha256.txt"
 
       - name: Publish release
         uses: softprops/action-gh-release@v1

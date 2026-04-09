@@ -174,7 +174,7 @@ pub fn generate_pr_template(
 ) -> Result<String, String> {
     let scope = resolve_requested_scope(staged, base, head, commits, "pr")
         .map_err(|e| format!("Failed to collect diff context for the PR body. {}", e))?;
-    let summary = summarize_diff_scope(&scope)
+    let summary = summarize_diff_scope(&scope, None)
         .map_err(|e| format!("Failed to collect diff context for the PR body. {}", e))?;
 
     let stat_lines = diff_stat_for_scope(&scope);
