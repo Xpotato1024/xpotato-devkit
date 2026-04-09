@@ -54,7 +54,12 @@ jobs:
       - name: Build Windows installer
         if: runner.os == 'Windows'
         working-directory: rust
-        run: cargo build --locked --release --target ${{ matrix.target }} --package devkit-installer
+        env:
+          DEVKIT_INSTALLER_PAYLOAD: ${{ github.workspace }}/rust/target/${{ matrix.target }}/release/devkit.exe
+          DEVKIT_CLEANUP_HELPER: ${{ github.workspace }}/rust/target/${{ matrix.target }}/release/devkit-cleanup-helper.exe
+        run: |
+          cargo build --locked --release --target ${{ matrix.target }} --package devkit-installer --bin devkit-cleanup-helper
+          cargo build --locked --release --target ${{ matrix.target }} --package devkit-installer --bin devkit-installer
 
       - name: Package asset (Unix)
         if: runner.os != 'Windows'
@@ -71,12 +76,11 @@ jobs:
         working-directory: rust
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force ..\dist\bundle | Out-Null
           $tag = $env:GITHUB_REF_NAME
           $assetName = "devkit-$tag-${{ matrix.target }}.${{ matrix.archive_ext }}"
-          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "..\dist\bundle\devkit.exe"
+          New-Item -ItemType Directory -Force ..\dist\bundle | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/devkit-installer.exe" "..\dist\bundle\devkit-installer.exe"
-          Compress-Archive -Path "..\dist\bundle\*" -DestinationPath "..\dist\$assetName" -Force
+          Compress-Archive -Path "..\dist\bundle\devkit-installer.exe" -DestinationPath "..\dist\$assetName" -Force
           Remove-Item -Recurse -Force "..\dist\bundle"
 
       - name: Upload packaged asset
