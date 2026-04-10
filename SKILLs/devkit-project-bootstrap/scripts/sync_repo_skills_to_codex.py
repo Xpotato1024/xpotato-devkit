@@ -6,6 +6,14 @@ import sys
 from pathlib import Path
 
 
+def default_repo_root() -> Path:
+    script_path = Path(__file__).resolve()
+    for parent in script_path.parents:
+        if (parent / "SKILLs").is_dir() and (parent / "rust").is_dir():
+            return parent
+    return script_path.parents[3]
+
+
 def copy_tree(source: Path, destination: Path) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     for child in source.iterdir():
@@ -25,7 +33,7 @@ def main() -> int:
     parser.add_argument(
         "--repo-root",
         type=Path,
-        default=Path(__file__).resolve().parents[4],
+        default=default_repo_root(),
         help="Repository root containing SKILLs/.",
     )
     parser.add_argument(

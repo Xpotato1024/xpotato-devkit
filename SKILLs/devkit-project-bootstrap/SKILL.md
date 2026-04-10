@@ -30,7 +30,7 @@ Use `devkit` when the task is about initial local setup.
    - `devkit encoding check devkit.toml --brief` when a config file was written
 4. When the task is specifically to sync repo-bundled skills into the local Codex store:
    - prefer `devkit bootstrap sync-skills` for workspace-local copies
-   - use `python scripts/sync_repo_skills_to_codex.py` only when the destination must be the Codex skill store
+   - use `uv run python scripts/sync_repo_skills_to_codex.py` only when the destination must be the Codex skill store
 
 ## Rules
 
