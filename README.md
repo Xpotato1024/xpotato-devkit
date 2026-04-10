@@ -75,6 +75,8 @@ The current Rust binary publicly supports these command groups:
 - `devkit block context`
 - `devkit block extract`
 - `devkit block replace`
+- `devkit bootstrap sync-skills`
+- `devkit bootstrap init-agents`
 - `devkit md append-section`
 - `devkit md replace-section`
 - `devkit md ensure-section`
@@ -149,6 +151,12 @@ devkit tree --max-depth 2 --limit 40
 
 # UTF-8/BOM/改行混在などの異常を要約チェック
 devkit encoding check README.md docs/**/*.md --brief
+
+# repo-bundled skill pack を別 workspace に展開
+devkit bootstrap sync-skills --repo-root . --target ../target-repo
+
+# repo-bundled skills 向けの AGENTS.md テンプレートを書く
+devkit bootstrap init-agents --path ../target-repo/AGENTS.md
 
 # BOM 除去と改行コード統一
 devkit encoding normalize README.md docs/**/*.md --newline crlf
@@ -245,6 +253,7 @@ For agent-facing guidance, see:
 - `SKILLs/devkit-tree-explore/`
 
 Bundled repo skills should prefer `--brief` or JSON-capable output when another tool or agent will consume the result, because the default human-facing terminal output may be colorized.
+Use `devkit bootstrap sync-skills` to copy the repo-bundled `SKILLs/` tree into another workspace, and `devkit bootstrap init-agents` to generate a starter `AGENTS.md` for that workspace.
 
 ## Release
 

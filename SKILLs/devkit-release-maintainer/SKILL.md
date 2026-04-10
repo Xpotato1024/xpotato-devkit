@@ -29,7 +29,7 @@ Use this skill for release-oriented work on `devkit` itself.
    - Build `devkit-installer` with embedded payload env vars
 4. Only then proceed to tag / release publication.
 5. Use the bundled checker when the version-alignment path itself needs a deterministic audit.
-   - `python scripts/check_release_version_alignment.py`
+   - `uv run python scripts/check_release_version_alignment.py`
 
 ## Rules
 

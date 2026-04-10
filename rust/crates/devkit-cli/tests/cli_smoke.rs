@@ -112,6 +112,7 @@ fn help_smoke_for_current_command_groups() {
         &["--help"][..],
         &["tree", "--help"],
         &["encoding", "--help"],
+        &["bootstrap", "--help"],
         &["block", "--help"],
         &["diff", "--help"],
         &["search", "--help"],
@@ -233,4 +234,56 @@ fn search_usage_errors_exit_with_code_2() {
 
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("cannot be combined"));
+}
+
+#[test]
+fn bootstrap_runtime_can_sync_skills_and_init_agents() {
+    let temp = TempDir::new("bootstrap");
+    let repo_root = temp.path.join("repo");
+    let workspace = temp.path.join("workspace");
+    write(
+        &repo_root.join("SKILLs").join("demo-skill").join("SKILL.md"),
+        "# demo-skill\n",
+    );
+
+    let sync = run_devkit(
+        &temp.path,
+        &[
+            "bootstrap",
+            "sync-skills",
+            "--repo-root",
+            repo_root.to_str().unwrap(),
+            "--target",
+            workspace.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(sync.status.code(), Some(0), "{}", stderr(&sync));
+    assert!(
+        workspace
+            .join("SKILLs")
+            .join("demo-skill")
+            .join("SKILL.md")
+            .is_file(),
+        "sync-skills did not copy the skill tree"
+    );
+
+    let agents_path = workspace.join("AGENTS.md");
+    let init_agents = run_devkit(
+        &temp.path,
+        &[
+            "bootstrap",
+            "init-agents",
+            "--path",
+            agents_path.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(
+        init_agents.status.code(),
+        Some(0),
+        "{}",
+        stderr(&init_agents)
+    );
+    let agents = fs::read_to_string(&agents_path).unwrap();
+    assert!(agents.contains("demo-skill"));
+    assert!(agents.contains("SKILLs/"));
 }

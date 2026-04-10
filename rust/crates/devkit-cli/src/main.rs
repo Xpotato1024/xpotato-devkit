@@ -161,6 +161,24 @@ pub enum BootstrapCommands {
         #[arg(long)]
         repo_root: Option<String>,
     },
+    /// Copy repo-bundled skills into a target workspace
+    SyncSkills {
+        #[arg(long)]
+        repo_root: Option<String>,
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long)]
+        force: bool,
+    },
+    /// Write a starter AGENTS.md template for repo-bundled skill usage
+    InitAgents {
+        #[arg(long)]
+        path: Option<String>,
+        #[arg(long, default_value = "SKILLs")]
+        skills_dir: String,
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -968,6 +986,8 @@ fn command_label(command: &Commands) -> &'static str {
         },
         Commands::Bootstrap { command } => match command {
             BootstrapCommands::InstallSelf { .. } => "bootstrap install-self",
+            BootstrapCommands::SyncSkills { .. } => "bootstrap sync-skills",
+            BootstrapCommands::InitAgents { .. } => "bootstrap init-agents",
         },
         Commands::Config { command } => match command {
             ConfigCommands::Init { .. } => "config init",
@@ -1384,6 +1404,88 @@ fn main() {
                             "Bootstrap complete. If the current shell does not see devkit yet, restart it or add {} to PATH.",
                             tool_bin.display()
                         );
+                    }
+                    Err(error) => {
+                        eprintln!("Error: {}", error);
+                        exit_with_timing(&cli, start, 1);
+                    }
+                }
+            }
+            BootstrapCommands::SyncSkills {
+                repo_root,
+                target,
+                force,
+            } => {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let resolved_root = if let Some(path) = repo_root {
+                    std::path::PathBuf::from(path)
+                } else {
+                    match devkit_bootstrap::find_repo_root(&cwd) {
+                        Ok(path) => path,
+                        Err(error) => {
+                            eprintln!("Error: {}", error);
+                            exit_with_timing(&cli, start, 1);
+                        }
+                    }
+                };
+                let target_root = target
+                    .as_ref()
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| cwd.clone());
+
+                match devkit_bootstrap::sync_repo_skills(&resolved_root, &target_root, *force) {
+                    Ok(skills) => {
+                        println!(
+                            "Synced {} skill(s) into {}",
+                            skills.len(),
+                            target_root.join("SKILLs").display()
+                        );
+                    }
+                    Err(error) => {
+                        eprintln!("Error: {}", error);
+                        exit_with_timing(&cli, start, 1);
+                    }
+                }
+            }
+            BootstrapCommands::InitAgents {
+                path,
+                skills_dir,
+                force,
+            } => {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let target = path
+                    .as_ref()
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| cwd.join("AGENTS.md"));
+                let skills_scan_path = {
+                    let path = std::path::PathBuf::from(skills_dir);
+                    if path.is_absolute() {
+                        path
+                    } else {
+                        target.parent().unwrap_or(cwd.as_path()).join(&path)
+                    }
+                };
+
+                match devkit_bootstrap::init_agents_template(
+                    &target,
+                    skills_dir,
+                    &skills_scan_path,
+                    *force,
+                ) {
+                    Ok(skills) => {
+                        if skills.is_empty() {
+                            println!(
+                                "Wrote {} with a starter skills section for {}",
+                                target.display(),
+                                skills_dir
+                            );
+                        } else {
+                            println!(
+                                "Wrote {} with {} bundled skill reference(s)",
+                                target.display(),
+                                skills.len()
+                            );
+                        }
                     }
                     Err(error) => {
                         eprintln!("Error: {}", error);
@@ -2560,6 +2662,26 @@ mod tests {
                 "crlf",
             ],
             &["devkit", "bootstrap", "install-self", "--repo-root", "."],
+            &[
+                "devkit",
+                "bootstrap",
+                "sync-skills",
+                "--repo-root",
+                ".",
+                "--target",
+                "workspace",
+                "--force",
+            ],
+            &[
+                "devkit",
+                "bootstrap",
+                "init-agents",
+                "--path",
+                "AGENTS.md",
+                "--skills-dir",
+                "SKILLs",
+                "--force",
+            ],
             &[
                 "devkit",
                 "config",

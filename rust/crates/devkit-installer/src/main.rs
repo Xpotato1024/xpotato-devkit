@@ -132,18 +132,17 @@ fn install(cli: &Cli, current_exe: &Path) -> Result<(), Box<dyn Error>> {
         installed_files.push("devkit-cleanup-helper.exe".to_string());
     }
 
+    let (path_added, path_value) =
+        install_manifest_path_record(&paths.manifest_path, &paths.install_dir, path_status);
+
     let manifest = InstallManifest {
         product: "devkit".to_string(),
         version: RELEASE_VERSION.to_string(),
         install_dir: paths.install_dir.to_string_lossy().to_string(),
         installed_at: chrono::Utc::now().to_rfc3339(),
         installed_files,
-        path_added: path_status == PathStatus::Added,
-        path_value: if path_status == PathStatus::Added {
-            Some(paths.install_dir.to_string_lossy().to_string())
-        } else {
-            None
-        },
+        path_added,
+        path_value,
         installer_version: RELEASE_VERSION.to_string(),
     };
 
@@ -231,6 +230,40 @@ fn install_paths(install_dir: PathBuf) -> InstallPaths {
         manifest_path: install_dir.join("install-manifest.json"),
         install_dir,
     }
+}
+
+fn install_manifest_path_record(
+    manifest_path: &Path,
+    install_dir: &Path,
+    path_status: PathStatus,
+) -> (bool, Option<String>) {
+    match path_status {
+        PathStatus::Added => (true, Some(install_dir.to_string_lossy().to_string())),
+        PathStatus::AlreadyPresent => {
+            let preserved = read_manifest(manifest_path)
+                .ok()
+                .and_then(|manifest| manifest_path_value(&manifest))
+                .filter(|path| paths_equivalent(path, install_dir))
+                .map(|path| path.to_string_lossy().to_string());
+
+            if let Some(path_value) = preserved {
+                (true, Some(path_value))
+            } else {
+                (false, None)
+            }
+        }
+        PathStatus::Skipped | PathStatus::Failed => (false, None),
+    }
+}
+
+fn paths_equivalent(left: &Path, right: &Path) -> bool {
+    fn normalize(path: &Path) -> String {
+        path.to_string_lossy()
+            .trim_end_matches(['\\', '/'])
+            .to_ascii_lowercase()
+    }
+
+    normalize(left) == normalize(right)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -727,6 +760,62 @@ mod tests {
 
         assert!(dir.exists());
         assert!(dir.join("devkit.exe").exists());
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn install_manifest_path_record_preserves_existing_added_path() {
+        let dir = test_dir("manifest-path-record-preserve");
+        let install_dir = dir.join("install");
+        fs::create_dir_all(&install_dir).unwrap();
+        let manifest_path = install_dir.join("install-manifest.json");
+
+        let manifest = InstallManifest {
+            product: "devkit".to_string(),
+            version: "v0.1.5".to_string(),
+            install_dir: install_dir.to_string_lossy().to_string(),
+            installed_at: "2026-04-10T00:00:00Z".to_string(),
+            installed_files: vec!["devkit.exe".to_string()],
+            path_added: true,
+            path_value: Some(install_dir.to_string_lossy().to_string()),
+            installer_version: "v0.1.5".to_string(),
+        };
+        write_manifest(&manifest_path, &manifest).unwrap();
+
+        let (path_added, path_value) =
+            install_manifest_path_record(&manifest_path, &install_dir, PathStatus::AlreadyPresent);
+
+        assert!(path_added);
+        assert_eq!(path_value, Some(install_dir.to_string_lossy().to_string()));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn install_manifest_path_record_does_not_claim_manual_path_entries() {
+        let dir = test_dir("manifest-path-record-manual");
+        let install_dir = dir.join("install");
+        fs::create_dir_all(&install_dir).unwrap();
+        let manifest_path = install_dir.join("install-manifest.json");
+
+        let manifest = InstallManifest {
+            product: "devkit".to_string(),
+            version: "v0.1.5".to_string(),
+            install_dir: install_dir.to_string_lossy().to_string(),
+            installed_at: "2026-04-10T00:00:00Z".to_string(),
+            installed_files: vec!["devkit.exe".to_string()],
+            path_added: false,
+            path_value: None,
+            installer_version: "v0.1.5".to_string(),
+        };
+        write_manifest(&manifest_path, &manifest).unwrap();
+
+        let (path_added, path_value) =
+            install_manifest_path_record(&manifest_path, &install_dir, PathStatus::AlreadyPresent);
+
+        assert!(!path_added);
+        assert_eq!(path_value, None);
 
         fs::remove_dir_all(dir).unwrap();
     }

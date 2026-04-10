@@ -5,6 +5,14 @@ import sys
 from pathlib import Path
 
 
+def default_repo_root() -> Path:
+    script_path = Path(__file__).resolve()
+    for parent in script_path.parents:
+        if (parent / ".github" / "workflows" / "release.yml").is_file():
+            return parent
+    return script_path.parents[3]
+
+
 def require_contains(path: Path, needle: str, label: str, failures: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     if needle not in text:
@@ -18,7 +26,7 @@ def main() -> int:
     parser.add_argument(
         "--repo-root",
         type=Path,
-        default=Path(__file__).resolve().parents[4],
+        default=default_repo_root(),
         help="Repository root to inspect.",
     )
     args = parser.parse_args()

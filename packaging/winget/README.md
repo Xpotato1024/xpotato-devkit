@@ -9,6 +9,10 @@
 3. `InstallerSha256` を `devkit-<tag>-sha256.txt` から転記する
 4. release notes / docs と `PackageIdentifier` などのメタデータ整合性を確認する
 
+`PackageVersion` は manifest を更新した日付や review の都合ではなく、`winget-pkgs` に提出する公開済み release と一致させます。
+manifest だけ先に直した場合でも、対応する release asset が未公開ならその version では提出しません。
+公開済み release の検証後に機能修正が入った場合は、同じ version のまま提出せず、次の release tag に合わせて URL と SHA256 を更新し直します。
+
 ## 固定方針
 
 - PackageIdentifier: `Xpotato.devkit`
