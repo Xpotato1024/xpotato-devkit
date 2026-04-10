@@ -65,6 +65,11 @@ Windows release では次を公開します。
 
 release workflow は公開 asset 一式に対して `devkit-<tag>-sha256.txt` を生成します。`winget` manifest 作成時はそのファイルの SHA256 を使ってください。
 
+## version の扱い
+
+`PackageVersion` は `winget` manifest だけの都合で先行して増やさず、提出対象の公開済み release と一致させます。
+検証中に installer や uninstall の不具合が見つかって修正が必要になった場合は、その修正版を新しい release tag として公開してから manifest を更新してください。
+
 ## 提出前チェック
 
 - standalone installer asset 名が docs と manifest draft に一致している

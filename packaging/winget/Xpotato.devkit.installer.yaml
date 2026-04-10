@@ -1,6 +1,7 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
 # Draft manifest for winget-pkgs submission.
 PackageIdentifier: Xpotato.devkit
-PackageVersion: 0.1.0
+PackageVersion: 0.1.5
 InstallerType: exe
 Scope: user
 UpgradeBehavior: install
@@ -8,8 +9,8 @@ Commands:
   - devkit
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/Xpotato1024/xpotato-devkit/releases/download/v0.1.0/devkit-installer-v0.1.0-x86_64-pc-windows-msvc.exe
-    InstallerSha256: REPLACE_WITH_RELEASE_SHA256
+    InstallerUrl: https://github.com/Xpotato1024/xpotato-devkit/releases/download/v0.1.5/devkit-installer-v0.1.5-x86_64-pc-windows-msvc.exe
+    InstallerSha256: 9903d054caba87c430d7a7b9612c516bded252fefebd50f4f9da2f34440470bf
     InstallerLocale: en-US
     InstallerSwitches:
       Silent: --silent
