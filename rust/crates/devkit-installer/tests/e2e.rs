@@ -230,7 +230,10 @@ fn reinstall_preserves_path_tracking_for_uninstall() {
     let manifest: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
     assert_eq!(manifest["path_added"], true);
-    assert_eq!(manifest["path_value"], install_dir.to_string_lossy().to_string());
+    assert_eq!(
+        manifest["path_value"],
+        install_dir.to_string_lossy().to_string()
+    );
 
     let reinstall = Command::new(&installer_path)
         .arg("--silent")
@@ -248,7 +251,10 @@ fn reinstall_preserves_path_tracking_for_uninstall() {
     let manifest: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
     assert_eq!(manifest["path_added"], true);
-    assert_eq!(manifest["path_value"], install_dir.to_string_lossy().to_string());
+    assert_eq!(
+        manifest["path_value"],
+        install_dir.to_string_lossy().to_string()
+    );
 
     let uninstall_path = install_dir.join("uninstall.exe");
     let uninstall = Command::new(&uninstall_path)
