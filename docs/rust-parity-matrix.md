@@ -15,6 +15,8 @@
 | encoding check | yes | yes | L2 | Rust parity added on 2026-04-08 follow-up |
 | encoding normalize | stub | yes | L2 | Rust implementation includes dry-run and newline style selection |
 | bootstrap install-self | yes | yes | L2 | Rust implementation uses cargo install from current checkout |
+| bootstrap sync-skills | no | yes | L2 | Rust implementation copies repo-bundled `SKILLs/` into a target workspace |
+| bootstrap init-agents | no | yes | L2 | Rust implementation writes a starter `AGENTS.md` for repo-bundled skill usage |
 | config init | no | yes | L2 | Rust CLI can generate an editable `devkit.toml` template |
 | metrics show | yes | yes | L2 | Rust implementation reads local JSONL metrics when enabled |
 | tree | yes | yes | L2 | Phase 2 完了 |

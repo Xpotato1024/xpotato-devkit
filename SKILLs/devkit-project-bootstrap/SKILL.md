@@ -20,19 +20,24 @@ Use `devkit` when the task is about initial local setup.
    - Confirm whether `devkit.toml` already exists.
 2. Run the narrow setup step.
    - `devkit bootstrap install-self`
+   - `devkit bootstrap sync-skills --repo-root <devkit-repo> --target <workspace>`
+   - `devkit bootstrap init-agents --path <workspace>/AGENTS.md`
    - `devkit config init`
 3. Verify the result.
    - `devkit --help`
+   - `devkit bootstrap --help`
    - `devkit config init --help` if the config path or overwrite behavior matters
    - `devkit encoding check devkit.toml --brief` when a config file was written
 4. When the task is specifically to sync repo-bundled skills into the local Codex store:
-   - `python scripts/sync_repo_skills_to_codex.py`
+   - prefer `devkit bootstrap sync-skills` for workspace-local copies
+   - use `python scripts/sync_repo_skills_to_codex.py` only when the destination must be the Codex skill store
 
 ## Rules
 
 - Do not overwrite an existing config unless the task explicitly allows it.
 - Keep setup instructions generic and cross-platform.
 - Prefer the CLI flow over ad hoc manual file creation.
+- Keep installer behavior minimal; optional workspace bootstrapping belongs under `devkit bootstrap`.
 
 ## Reference
 

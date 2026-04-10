@@ -10,6 +10,16 @@ Use this reference when walking through local installation or initial config.
 3. Verify:
    - `devkit --help`
 
+## Workspace agent bootstrap flow
+
+1. Confirm whether the target workspace already contains `SKILLs/` or `AGENTS.md`.
+2. Run:
+   - `devkit bootstrap sync-skills --repo-root <devkit-repo> --target <workspace>`
+   - `devkit bootstrap init-agents --path <workspace>/AGENTS.md`
+3. Verify:
+   - the workspace contains `SKILLs/<skill>/SKILL.md`
+   - `AGENTS.md` references the intended skills directory
+
 ## Config initialization flow
 
 1. Confirm whether `devkit.toml` already exists.
