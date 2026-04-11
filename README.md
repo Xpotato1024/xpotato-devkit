@@ -264,6 +264,10 @@ Release is tag-triggered only:
 - Windows releases publish both `devkit-{tag}-x86_64-pc-windows-msvc.zip` and `devkit-installer-{tag}-x86_64-pc-windows-msvc.exe`.
 - Release outputs also include `devkit-{tag}-sha256.txt` for checksum verification.
 
+Release note:
+
+- `v0.1.6` is the checked release target for the first `winget` submission. The published Windows installer asset, checksum file, draft manifests, and silent install/uninstall verification are now aligned.
+
 See [tag-triggered release docs](docs/release/tag-triggered-release.md) for the maintainer flow.
 
 ## Windows installation
