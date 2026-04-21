@@ -161,6 +161,9 @@ devkit bootstrap init-agents --path ../target-repo/AGENTS.md
 # BOM 除去と改行コード統一
 devkit encoding normalize README.md docs/**/*.md --newline crlf
 
+# Markdown 編集は既存ファイルの改行形式を維持
+# ファイル全体を明示的に揃えるときは encoding normalize を使う
+
 # Python ファイルの構造だけを見る
 devkit block outline main.py --imports
 

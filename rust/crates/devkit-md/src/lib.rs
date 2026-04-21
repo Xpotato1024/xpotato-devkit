@@ -126,6 +126,16 @@ fn get_lines(body: &str) -> Vec<&str> {
     raw_lines
 }
 
+fn detect_newline_style(text: &str) -> &'static str {
+    if text.contains("\r\n") { "\r\n" } else { "\n" }
+}
+
+fn normalize_newlines(text: &str, newline: &str) -> String {
+    text.replace("\r\n", "\n")
+        .replace('\r', "\n")
+        .replace('\n', newline)
+}
+
 pub fn append_to_section(
     filepath: &Path,
     heading: &str,
@@ -133,6 +143,7 @@ pub fn append_to_section(
     dry_run: bool,
 ) -> Result<String, String> {
     let text = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
+    let newline = detect_newline_style(&text);
     let (frontmatter, body) = split_frontmatter(&text);
     let lines = get_lines(body);
     let plain_lines: Vec<_> = lines
@@ -142,8 +153,9 @@ pub fn append_to_section(
 
     let (_, _, end_idx) = find_section(&plain_lines, heading, true)?;
 
-    if !content.is_empty() && !content.ends_with('\n') {
-        content.push('\n');
+    content = normalize_newlines(&content, newline);
+    if !content.is_empty() && !content.ends_with(newline) {
+        content.push_str(newline);
     }
 
     let mut result = String::from(frontmatter);
@@ -169,6 +181,7 @@ pub fn replace_section(
     dry_run: bool,
 ) -> Result<String, String> {
     let text = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
+    let newline = detect_newline_style(&text);
     let (frontmatter, body) = split_frontmatter(&text);
     let lines = get_lines(body);
     let plain_lines: Vec<_> = lines
@@ -178,8 +191,9 @@ pub fn replace_section(
 
     let (start_idx, content_start, end_idx) = find_section(&plain_lines, heading, true)?;
 
-    if !content.is_empty() && !content.ends_with('\n') {
-        content.push('\n');
+    content = normalize_newlines(&content, newline);
+    if !content.is_empty() && !content.ends_with(newline) {
+        content.push_str(newline);
     }
 
     let mut result = String::from(frontmatter);
@@ -211,6 +225,7 @@ pub fn ensure_section(
     dry_run: bool,
 ) -> Result<String, String> {
     let text = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
+    let newline = detect_newline_style(&text);
     let (frontmatter, body) = split_frontmatter(&text);
     let lines = get_lines(body);
     let plain_lines: Vec<_> = lines
@@ -222,11 +237,12 @@ pub fn ensure_section(
         return Ok(text);
     }
 
-    let heading_line = format!("{} {}\n", "#".repeat(level), heading);
+    let heading_line = format!("{} {}{}", "#".repeat(level), heading, newline);
     let mut block = heading_line;
     if !content.is_empty() {
-        if !content.ends_with('\n') {
-            content.push('\n');
+        content = normalize_newlines(&content, newline);
+        if !content.ends_with(newline) {
+            content.push_str(newline);
         }
         block.push_str(&content);
     }
@@ -237,7 +253,7 @@ pub fn ensure_section(
         for line in &lines[..end_idx] {
             result.push_str(line);
         }
-        result.push('\n');
+        result.push_str(newline);
         result.push_str(&block);
         for line in &lines[end_idx..] {
             result.push_str(line);
@@ -247,7 +263,7 @@ pub fn ensure_section(
             result.push_str(line);
         }
         if !lines.is_empty() && !lines.last().unwrap().trim().is_empty() {
-            result.push('\n');
+            result.push_str(newline);
         }
         result.push_str(&block);
     }
@@ -266,6 +282,7 @@ pub fn append_bullet(
     dry_run: bool,
 ) -> Result<String, String> {
     let text = fs::read_to_string(filepath).map_err(|e| e.to_string())?;
+    let newline = detect_newline_style(&text);
     let (frontmatter, body) = split_frontmatter(&text);
     let lines = get_lines(body);
     let plain_lines: Vec<_> = lines
@@ -289,7 +306,7 @@ pub fn append_bullet(
     }
 
     let mut bullet_line = bullet_stripped;
-    bullet_line.push('\n');
+    bullet_line.push_str(newline);
 
     let mut result = String::from(frontmatter);
     for line in &lines[..end_idx] {
@@ -304,4 +321,46 @@ pub fn append_bullet(
         fs::write(filepath, &result).map_err(|e| e.to_string())?;
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_file(name: &str) -> std::path::PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("devkit-md-{name}-{unique}.md"))
+    }
+
+    #[test]
+    fn append_to_section_preserves_crlf_newlines() {
+        let path = temp_file("append");
+        fs::write(&path, "# Title\r\n\r\n## Log\r\nexisting\r\n").unwrap();
+
+        let result = append_to_section(&path, "Log", "- added".to_string(), false).unwrap();
+
+        assert_eq!(result, "# Title\r\n\r\n## Log\r\nexisting\r\n- added\r\n");
+        assert_eq!(fs::read_to_string(&path).unwrap(), result);
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn ensure_section_preserves_crlf_newlines() {
+        let path = temp_file("ensure");
+        fs::write(&path, "# Title\r\n\r\n## Existing\r\nbody\r\n").unwrap();
+
+        let result =
+            ensure_section(&path, "Added", "line1\nline2".to_string(), 2, None, false).unwrap();
+
+        assert_eq!(
+            result,
+            "# Title\r\n\r\n## Existing\r\nbody\r\n\r\n## Added\r\nline1\r\nline2\r\n"
+        );
+        assert_eq!(fs::read_to_string(&path).unwrap(), result);
+        fs::remove_file(path).unwrap();
+    }
 }
