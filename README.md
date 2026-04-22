@@ -168,6 +168,9 @@ devkit bootstrap init-agents --path ../target-repo/AGENTS.md
 # Normalize BOM and newlines
 devkit encoding normalize README.md docs/**/*.md --newline crlf
 
+# Markdown edits preserve the existing file newline style
+# Use encoding normalize when you want an explicit whole-file rewrite
+
 # Show Python file structure
 devkit block outline main.py --imports
 
