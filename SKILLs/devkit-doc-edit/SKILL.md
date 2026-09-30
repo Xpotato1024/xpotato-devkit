@@ -41,3 +41,7 @@ Use `devkit` when the task is primarily about documentation changes.
 
 - See [AI agent workflow](../../docs/design/ai_agent_workflow.md) for the inspect/edit/verify loop.
 - When the exact markdown/doc command choice is unclear, read [references/command-patterns.md](references/command-patterns.md).
+
+## Reuse and completion
+
+Follow the target repository AGENTS.md and its workflow for role selection, valid evidence reuse and scoped recovery. Check the changed document, not every document again. Creating a new report is conditional on the task, not a universal completion gate. A reference to another skill does not require its whole workflow to run.
